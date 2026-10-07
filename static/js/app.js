@@ -3,6 +3,15 @@ const themeIcon = document.getElementById("themeIcon");
 const themeLabel = document.getElementById("themeLabel");
 const workflowLinks = [...document.querySelectorAll(".workflow-link")];
 
+const presetSelect = document.getElementById("presetSelect");
+const applyPresetButton = document.getElementById("applyPresetButton");
+const savePresetButton = document.getElementById("savePresetButton");
+const deletePresetButton = document.getElementById("deletePresetButton");
+const recentProjectSelect = document.getElementById("recentProjectSelect");
+const openProjectButton = document.getElementById("openProjectButton");
+const deleteProjectButton = document.getElementById("deleteProjectButton");
+const clearProjectsButton = document.getElementById("clearProjectsButton");
+
 const videoInput = document.getElementById("videoInput");
 const dropZone = document.getElementById("dropZone");
 const uploadForm = document.getElementById("uploadForm");
@@ -71,8 +80,317 @@ let currentSegments = [];
 let generationInProgress = false;
 let ffmpegReady = false;
 let outputFormat = "original";
+let recentProjects = [];
 
 const THEME_STORAGE_KEY = "andercode-video-theme";
+const PRESETS_STORAGE_KEY = "andercode-video-presets";
+
+const BUILTIN_PRESETS = {
+    "Reel AnderCode": {
+        intro_seconds: 5,
+        clip_seconds: 30,
+        output_format: "vertical",
+        vertical_scale: 88,
+        vertical_position: "center",
+        blur_strength: 25,
+        branding_enabled: true,
+        branding_title: "",
+        branding_handle: "anderson-bastidas.com",
+        show_safe_zone: true,
+    },
+    "Reel limpio": {
+        intro_seconds: 5,
+        clip_seconds: 30,
+        output_format: "vertical",
+        vertical_scale: 100,
+        vertical_position: "center",
+        blur_strength: 25,
+        branding_enabled: false,
+        branding_title: "",
+        branding_handle: "@AnderCode",
+        show_safe_zone: true,
+    },
+    "Formato original": {
+        intro_seconds: 5,
+        clip_seconds: 30,
+        output_format: "original",
+        vertical_scale: 100,
+        vertical_position: "center",
+        blur_strength: 25,
+        branding_enabled: false,
+        branding_title: "",
+        branding_handle: "@AnderCode",
+        show_safe_zone: true,
+    },
+};
+
+function getCustomPresets() {
+    try {
+        const stored = JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY) || "{}");
+        return stored && typeof stored === "object" && !Array.isArray(stored)
+            ? stored
+            : {};
+    } catch (_error) {
+        return {};
+    }
+}
+
+function saveCustomPresets(presets) {
+    try {
+        localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+        return true;
+    } catch (_error) {
+        setStatus("No se pudieron guardar los presets en el navegador.", "error");
+        return false;
+    }
+}
+
+function captureCurrentSettings() {
+    return {
+        intro_seconds: Number(introSeconds.value) || 0,
+        clip_seconds: Number(clipSeconds.value) || 30,
+        output_format: getOutputFormat(),
+        vertical_scale: Number(contentScale.value) || 100,
+        vertical_position: getVerticalPosition(),
+        blur_strength: Number(blurStrength.value) || 25,
+        branding_enabled: brandingEnabled.checked,
+        branding_title: brandingTitle.value.trim(),
+        branding_handle: brandingHandle.value.trim(),
+        show_safe_zone: showSafeZone.checked,
+    };
+}
+
+function deriveTitleFromName(name = "") {
+    return name
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function applySettings(settings = {}) {
+    introSeconds.value = settings.intro_seconds ?? 5;
+    clipSeconds.value = settings.clip_seconds ?? 30;
+    contentScale.value = settings.vertical_scale ?? 100;
+    blurStrength.value = settings.blur_strength ?? 25;
+
+    const desiredFormat = settings.output_format || "original";
+    const formatInput = outputFormatInputs.find(
+        (input) => input.value === desiredFormat
+    );
+
+    if (formatInput) {
+        formatInput.checked = true;
+    }
+
+    const desiredPosition = settings.vertical_position || "center";
+    const positionInput = verticalPositionInputs.find(
+        (input) => input.value === desiredPosition
+    );
+
+    if (positionInput) {
+        positionInput.checked = true;
+    }
+
+    brandingEnabled.checked = Boolean(settings.branding_enabled);
+    brandingHandle.value = settings.branding_handle ?? "@AnderCode";
+    showSafeZone.checked = settings.show_safe_zone !== false;
+
+    if (typeof settings.branding_title === "string" && settings.branding_title.trim()) {
+        brandingTitle.value = settings.branding_title;
+    } else if (fileName.textContent && fileName.textContent !== "—") {
+        brandingTitle.value = deriveTitleFromName(fileName.textContent);
+    } else {
+        brandingTitle.value = "";
+    }
+
+    recalculateClips();
+    updateVerticalPreviewStyle();
+    updateBrandingPreview();
+    updateOutputFormat();
+
+    if (uploadedFilename) {
+        segmentsPanel.classList.add("hidden");
+        analyzeButton.classList.remove("hidden");
+        currentSegments = [];
+        resetGeneration();
+    }
+}
+
+function renderPresetOptions(selectedValue = "") {
+    const customPresets = getCustomPresets();
+    const options = [
+        '<optgroup label="Incluidos">',
+        ...Object.keys(BUILTIN_PRESETS).map(
+            (name) => `<option value="builtin:${name}">${name}</option>`
+        ),
+        "</optgroup>",
+    ];
+
+    const customNames = Object.keys(customPresets);
+
+    if (customNames.length) {
+        options.push('<optgroup label="Mis presets">');
+        options.push(
+            ...customNames.map(
+                (name) => `<option value="custom:${name}">${name}</option>`
+            )
+        );
+        options.push("</optgroup>");
+    }
+
+    presetSelect.innerHTML = options.join("");
+
+    if (selectedValue && [...presetSelect.options].some((option) => option.value === selectedValue)) {
+        presetSelect.value = selectedValue;
+    }
+
+    updatePresetButtons();
+}
+
+function getSelectedPreset() {
+    const [type, ...parts] = presetSelect.value.split(":");
+    const name = parts.join(":");
+
+    if (type === "builtin") {
+        return {
+            type,
+            name,
+            settings: BUILTIN_PRESETS[name],
+        };
+    }
+
+    const custom = getCustomPresets();
+
+    return {
+        type: "custom",
+        name,
+        settings: custom[name],
+    };
+}
+
+function updatePresetButtons() {
+    const selected = getSelectedPreset();
+    deletePresetButton.disabled = selected.type !== "custom";
+}
+
+async function loadRecentProjects(selectedId = "") {
+    try {
+        const response = await fetch("/projects");
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudieron cargar los proyectos recientes.");
+        }
+
+        recentProjects = data.projects || [];
+
+        if (!recentProjects.length) {
+            recentProjectSelect.innerHTML = '<option value="">Sin proyectos recientes</option>';
+            openProjectButton.disabled = true;
+            deleteProjectButton.disabled = true;
+            clearProjectsButton.disabled = true;
+            return;
+        }
+
+        recentProjectSelect.innerHTML = recentProjects.map((project) => {
+            const unavailable = project.available ? "" : " · no disponible";
+            const name = project.original_name || project.filename || project.id;
+            return `<option value="${project.id}">${name}${unavailable}</option>`;
+        }).join("");
+
+        if (selectedId && recentProjects.some((project) => project.id === selectedId)) {
+            recentProjectSelect.value = selectedId;
+        }
+
+        updateProjectButtons();
+    } catch (error) {
+        recentProjectSelect.innerHTML = '<option value="">No se pudieron cargar</option>';
+        openProjectButton.disabled = true;
+        deleteProjectButton.disabled = true;
+        clearProjectsButton.disabled = true;
+    }
+}
+
+function updateProjectButtons() {
+    const project = recentProjects.find(
+        (item) => item.id === recentProjectSelect.value
+    );
+
+    openProjectButton.disabled = !project?.available;
+    deleteProjectButton.disabled = !project;
+    clearProjectsButton.disabled = recentProjects.length === 0;
+}
+
+function loadPreviewUrl(url) {
+    if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+    }
+
+    videoPreview.src = url;
+    verticalBackground.src = url;
+    verticalForeground.src = url;
+
+    previewPlaceholder.classList.add("hidden");
+    previewWorkspace.classList.remove("hidden");
+
+    videoPreview.load();
+    verticalBackground.load();
+    verticalForeground.load();
+
+    updateVerticalPreviewStyle();
+    updateBrandingPreview();
+    updateOutputFormat();
+}
+
+async function openRecentProject() {
+    const projectId = recentProjectSelect.value;
+
+    if (!projectId) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/projects/${encodeURIComponent(projectId)}`);
+        const project = await response.json();
+
+        if (!response.ok) {
+            throw new Error(project.message || "No se pudo abrir el proyecto.");
+        }
+
+        if (!project.available || !project.url) {
+            throw new Error("El archivo original de este proyecto ya no está disponible.");
+        }
+
+        resetAnalysis();
+        selectedFile = null;
+        uploadedFilename = project.filename;
+
+        fileName.textContent = project.original_name || project.filename;
+        fileSize.textContent = formatBytes(Number(project.size) || 0);
+        fileInfo.classList.remove("hidden");
+
+        uploadButton.disabled = true;
+        uploadButton.textContent = "Video ya cargado en el proyecto";
+        analyzeButton.classList.remove("hidden");
+
+        applySettings(project);
+        loadPreviewUrl(project.url);
+
+        setStatus(
+            "Proyecto reciente cargado. Puedes analizarlo y continuar trabajando.",
+            "success"
+        );
+        setActiveWorkflow("uploadSection");
+        document.getElementById("uploadSection").scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
+    } catch (error) {
+        setStatus(error.message || "No se pudo abrir el proyecto.", "error");
+    }
+}
 
 function updateThemeControl() {
     const theme = document.documentElement.dataset.theme || "dark";

@@ -2078,3 +2078,185 @@ html[data-theme="light"] .text-input {
     line-height: 1;
     text-align: center;
 }
+
+
+/* =========================================================
+   PHASE 8 · PRODUCTIVITY
+   ========================================================= */
+
+.productivity-bar {
+    margin-bottom: 22px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--panel-bg);
+    box-shadow: var(--shadow);
+}
+
+.productivity-group {
+    min-width: 0;
+    display: grid;
+    gap: 11px;
+}
+
+.productivity-heading {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.productivity-heading strong,
+.productivity-heading small {
+    display: block;
+}
+
+.productivity-heading strong {
+    font-size: 0.82rem;
+}
+
+.productivity-heading small {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.7rem;
+}
+
+.productivity-icon {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid rgba(124, 92, 255, 0.24);
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+.productivity-controls {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.compact-select {
+    min-width: 0;
+    flex: 1 1 190px;
+    height: 38px;
+    padding: 0 34px 0 11px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+    background: var(--control-bg);
+    color: var(--text);
+    font-size: 0.75rem;
+    font-weight: 650;
+}
+
+.compact-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.compact-button,
+.compact-icon-button {
+    height: 38px;
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 760;
+    transition:
+        transform 0.18s ease,
+        border-color 0.18s ease,
+        background 0.18s ease;
+}
+
+.compact-button {
+    padding: 0 12px;
+}
+
+.compact-icon-button {
+    width: 38px;
+    display: grid;
+    place-items: center;
+    font-size: 1rem;
+}
+
+.compact-button:hover:not(:disabled),
+.compact-icon-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: rgba(124, 92, 255, 0.5);
+    background: var(--hover-bg);
+}
+
+.compact-button:disabled,
+.compact-icon-button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+}
+
+.primary-compact {
+    border-color: rgba(124, 92, 255, 0.45);
+    background: var(--accent-soft);
+    color: var(--text);
+}
+
+.danger-compact:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+    background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+    color: var(--danger);
+}
+
+.productivity-separator {
+    width: 1px;
+    height: 72px;
+    background: var(--border);
+}
+
+html[data-theme="light"] .productivity-bar {
+    background: rgba(255, 255, 255, 0.94);
+}
+
+html[data-theme="light"] .compact-select,
+html[data-theme="light"] .compact-button,
+html[data-theme="light"] .compact-icon-button {
+    background: #ffffff;
+}
+
+@media (max-width: 980px) {
+    .productivity-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .productivity-separator {
+        width: 100%;
+        height: 1px;
+    }
+}
+
+@media (max-width: 650px) {
+    .productivity-controls {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .compact-select {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    .compact-button {
+        flex: 1 1 auto;
+    }
+}

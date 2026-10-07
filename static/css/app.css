@@ -1740,3 +1740,29 @@ html[data-theme="light"] footer {
         animation-iteration-count: 1 !important;
     }
 }
+
+
+/* Semantic contrast fixes shared by both themes */
+.brand-mark,
+.upload-icon {
+    color: #ffffff;
+}
+
+.hero-status,
+.header-status {
+    color: var(--text);
+}
+
+.select-button {
+    color: var(--text);
+}
+
+html[data-theme="light"] .step {
+    color: #6241d1;
+}
+
+html[data-theme="light"] .file-label,
+html[data-theme="light"] .file-info > span,
+html[data-theme="light"] .input-with-unit span {
+    color: var(--muted);
+}

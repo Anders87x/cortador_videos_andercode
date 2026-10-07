@@ -2,21 +2,143 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cortador de Videos AnderCode para preparar clips para Reels, TikTok y Shorts.">
 
     <title>Cortador de Videos - AnderCode</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
-
 <body>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-mark">AC</div>
+            <div>
+                <strong>AnderCode</strong>
+                <span>Cortador de Videos</span>
+            </div>
+        </div>
 
-    <h1>Cortador de Videos - AnderCode</h1>
+        <span class="phase-badge">Fase 2 · Preparación</span>
+    </header>
 
-    <p>
-        Proyecto funcionando correctamente.
-    </p>
+    <main class="page-shell">
+        <section class="hero">
+            <div>
+                <span class="eyebrow">REELS · TIKTOK · SHORTS</span>
+                <h1>Convierte tus videos largos en contenido corto.</h1>
+                <p>
+                    Selecciona un video, revisa cómo se ve y define la duración de los futuros clips.
+                    En esta fase todavía no realizaremos ningún corte.
+                </p>
+            </div>
 
+            <div class="hero-status">
+                <span class="status-dot"></span>
+                Procesamiento local
+            </div>
+        </section>
+
+        <section class="workspace">
+            <div class="panel">
+                <div class="panel-heading">
+                    <div>
+                        <span class="step">01</span>
+                        <h2>Selecciona tu video</h2>
+                    </div>
+                    <span class="muted">MP4 · MOV · MKV · WEBM · AVI</span>
+                </div>
+
+                <form id="uploadForm">
+                    <input
+                        id="videoInput"
+                        name="video"
+                        type="file"
+                        accept=".mp4,.mov,.mkv,.webm,.avi,video/*"
+                        hidden
+                    >
+
+                    <label for="videoInput" id="dropZone" class="drop-zone">
+                        <div class="upload-icon">↑</div>
+                        <strong>Arrastra tu video aquí</strong>
+                        <span>o haz clic para seleccionarlo</span>
+                        <span class="select-button">Seleccionar video</span>
+                    </label>
+
+                    <div id="fileInfo" class="file-info hidden">
+                        <div>
+                            <span class="file-label">Archivo seleccionado</span>
+                            <strong id="fileName">—</strong>
+                        </div>
+                        <span id="fileSize">—</span>
+                    </div>
+
+                    <button id="uploadButton" class="primary-button" type="submit" disabled>
+                        Cargar video al proyecto
+                    </button>
+
+                    <div id="uploadStatus" class="upload-status" aria-live="polite"></div>
+                </form>
+            </div>
+
+            <aside class="panel settings-panel">
+                <div class="panel-heading">
+                    <div>
+                        <span class="step">02</span>
+                        <h2>Configuración inicial</h2>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="introSeconds">Eliminar intro</label>
+                    <div class="input-with-unit">
+                        <input id="introSeconds" type="number" min="0" step="1" value="5">
+                        <span>segundos</span>
+                    </div>
+                    <small>El video útil comenzará después de este tiempo.</small>
+                </div>
+
+                <div class="field">
+                    <label for="clipSeconds">Duración de cada clip</label>
+                    <div class="input-with-unit">
+                        <input id="clipSeconds" type="number" min="5" step="1" value="30">
+                        <span>segundos</span>
+                    </div>
+                    <small>Usaremos este valor para preparar los cortes.</small>
+                </div>
+
+                <div class="summary-card">
+                    <span>Duración detectada</span>
+                    <strong id="videoDuration">—</strong>
+
+                    <span>Clips estimados</span>
+                    <strong id="estimatedClips">—</strong>
+                </div>
+            </aside>
+        </section>
+
+        <section class="panel preview-panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="step">03</span>
+                    <h2>Vista previa</h2>
+                </div>
+                <span class="muted">El video se reproduce antes de procesarlo</span>
+            </div>
+
+            <div id="previewPlaceholder" class="preview-placeholder">
+                <div class="preview-play">▶</div>
+                <p>Selecciona un video para mostrar la vista previa.</p>
+            </div>
+
+            <video id="videoPreview" class="video-preview hidden" controls preload="metadata"></video>
+        </section>
+    </main>
+
+    <footer>
+        AnderCode · Herramienta local para creación de contenido corto
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

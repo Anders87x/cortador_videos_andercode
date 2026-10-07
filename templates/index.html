@@ -19,7 +19,7 @@
             </div>
         </div>
 
-        <span class="phase-badge">Fase 3 · Análisis</span>
+        <span class="phase-badge">Fase 4 · Generación</span>
     </header>
 
     <main class="page-shell">
@@ -28,8 +28,8 @@
                 <span class="eyebrow">REELS · TIKTOK · SHORTS</span>
                 <h1>Convierte tus videos largos en contenido corto.</h1>
                 <p>
-                    Selecciona un video, revisa cómo se ve y define la duración de los futuros clips.
-                    En esta fase todavía no realizaremos ningún corte.
+                    Selecciona un video, revisa cómo se ve, analiza los cortes y genera únicamente
+                    los fragmentos que quieras conservar.
                 </p>
             </div>
 
@@ -161,6 +161,46 @@
             </div>
 
             <div id="segmentsList" class="segments-list"></div>
+
+            <div class="generation-box">
+                <div class="generation-copy">
+                    <span class="eyebrow">GENERACIÓN LOCAL</span>
+                    <strong id="selectedCount">0 clips seleccionados</strong>
+                    <p>
+                        Los clips se exportarán en MP4 manteniendo la resolución original.
+                        Se guardarán dentro de la carpeta <code>outputs/</code>.
+                    </p>
+                </div>
+
+                <button id="generateButton" class="primary-button generation-button" type="button" disabled>
+                    Generar clips seleccionados
+                </button>
+            </div>
+
+            <div id="generationProgress" class="generation-progress hidden">
+                <div class="progress-header">
+                    <strong id="progressTitle">Preparando...</strong>
+                    <span id="progressPercent">0%</span>
+                </div>
+
+                <div class="progress-track">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+
+                <span id="progressDetail" class="muted">Esperando generación.</span>
+            </div>
+
+            <div id="generatedResults" class="generated-results hidden">
+                <div class="results-heading">
+                    <div>
+                        <span class="step">✓</span>
+                        <h3>Clips generados</h3>
+                    </div>
+                    <span id="outputFolder" class="muted"></span>
+                </div>
+
+                <div id="generatedList" class="generated-list"></div>
+            </div>
         </section>
     </main>
 

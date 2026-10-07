@@ -1766,3 +1766,63 @@ html[data-theme="light"] .file-info > span,
 html[data-theme="light"] .input-with-unit span {
     color: var(--muted);
 }
+
+
+/* Stronger Light Mode contrast for configuration controls */
+html[data-theme="light"] .format-ratio {
+    color: #5230bf;
+    border-color: #a28ff0;
+    background: #f1edff;
+}
+
+html[data-theme="light"] .format-option:has(input:checked) .format-ratio {
+    color: #4525b7;
+    border-color: #7354df;
+    background: #e9e3ff;
+}
+
+html[data-theme="light"] .format-option-copy small,
+html[data-theme="light"] .vertical-settings small {
+    color: #5f6d82;
+}
+
+html[data-theme="light"] .position-options span {
+    color: #4f5c70;
+    border-color: #c9d2df;
+    background: #ffffff;
+}
+
+html[data-theme="light"] .position-options span:hover {
+    color: #4226aa;
+    border-color: #a38ef0;
+    background: #f7f4ff;
+}
+
+html[data-theme="light"] .position-options input:checked + span {
+    color: #4325ac;
+    border-color: #7253df;
+    background: #ebe6ff;
+    box-shadow: 0 0 0 2px rgba(105, 72, 232, 0.08);
+}
+
+html[data-theme="light"] .range-label strong {
+    color: #5534c5;
+}
+
+html[data-theme="light"] .output-format-summary {
+    color: #5030bd;
+    border-color: rgba(105, 72, 232, 0.3);
+    background: rgba(105, 72, 232, 0.08);
+}
+
+html[data-theme="light"] .vertical-settings {
+    border-color: rgba(105, 72, 232, 0.24);
+}
+
+html[data-theme="light"] .format-option:has(input:checked) {
+    border-color: #7b5bea;
+    background: #f8f6ff;
+    box-shadow:
+        inset 3px 0 0 var(--accent),
+        0 0 0 1px rgba(105, 72, 232, 0.04);
+}

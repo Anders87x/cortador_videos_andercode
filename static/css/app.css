@@ -1055,3 +1055,124 @@ footer {
         width: min(100%, 260px);
     }
 }
+
+
+.vertical-settings {
+    margin-top: 18px;
+    padding: 15px;
+    border: 1px solid rgba(124, 92, 255, 0.28);
+    border-radius: 14px;
+    background: rgba(124, 92, 255, 0.055);
+}
+
+.vertical-settings-heading {
+    margin-bottom: 15px;
+}
+
+.vertical-settings-heading span,
+.vertical-settings-heading strong {
+    display: block;
+}
+
+.vertical-settings-heading span {
+    color: #a996ff;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.vertical-settings-heading strong {
+    margin-top: 3px;
+    font-size: 0.88rem;
+}
+
+.compact-field + .compact-field {
+    margin-top: 16px;
+}
+
+.range-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.range-label label {
+    margin-bottom: 0;
+}
+
+.range-label strong {
+    color: #d7d0ff;
+    font-size: 0.78rem;
+}
+
+.range-input {
+    width: 100%;
+    margin-top: 9px;
+    accent-color: var(--accent);
+}
+
+.position-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+}
+
+.position-options label {
+    margin: 0;
+    cursor: pointer;
+}
+
+.position-options input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.position-options span {
+    display: block;
+    padding: 9px 8px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: rgba(6, 9, 16, 0.46);
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-weight: 750;
+    text-align: center;
+    transition: 0.18s ease;
+}
+
+.position-options input:checked + span {
+    border-color: rgba(124, 92, 255, 0.75);
+    background: rgba(124, 92, 255, 0.14);
+    color: #efeaff;
+}
+
+.vertical-foreground {
+    left: 50%;
+    object-fit: contain;
+    transition:
+        width 0.2s ease,
+        height 0.2s ease,
+        top 0.2s ease,
+        bottom 0.2s ease,
+        transform 0.2s ease;
+}
+
+.vertical-foreground.position-center {
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+}
+
+.vertical-foreground.position-top {
+    top: 8%;
+    bottom: auto;
+    transform: translateX(-50%);
+}
+
+.vertical-foreground.position-bottom {
+    top: auto;
+    bottom: 11%;
+    transform: translateX(-50%);
+}

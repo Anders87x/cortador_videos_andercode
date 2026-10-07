@@ -2066,3 +2066,15 @@ html[data-theme="light"] .text-input {
     background: #ffffff;
     color: #172033;
 }
+
+
+/* Branding signature: keep domains/handles on one line */
+.branding-handle-preview {
+    width: max-content;
+    max-width: 88%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    line-height: 1;
+    text-align: center;
+}

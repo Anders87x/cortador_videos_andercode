@@ -11,13 +11,16 @@ from werkzeug.utils import secure_filename
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_FOLDER = BASE_DIR / "uploads"
+OUTPUT_FOLDER = BASE_DIR / "outputs"
 ALLOWED_EXTENSIONS = {"mp4", "mov", "mkv", "webm", "avi"}
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
+app.config["OUTPUT_FOLDER"] = str(OUTPUT_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024 * 1024  # 8 GB
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 
 
 def allowed_file(filename):
@@ -26,6 +29,10 @@ def allowed_file(filename):
 
 def ffprobe_available():
     return shutil.which("ffprobe") is not None
+
+
+def ffmpeg_available():
+    return shutil.which("ffmpeg") is not None
 
 
 def probe_video(video_path):
@@ -113,6 +120,32 @@ def build_segments(duration, intro_seconds, clip_seconds):
     return segments
 
 
+def safe_uploaded_video(filename):
+    safe_filename = secure_filename(Path(filename).name)
+
+    if not safe_filename or safe_filename != filename:
+        return None, None
+
+    video_path = UPLOAD_FOLDER / safe_filename
+
+    if not video_path.exists() or not video_path.is_file():
+        return safe_filename, None
+
+    return safe_filename, video_path
+
+
+def time_for_filename(seconds):
+    total = max(0, int(float(seconds)))
+    hours = total // 3600
+    minutes = (total % 3600) // 60
+    secs = total % 60
+
+    if hours:
+        return f"{hours:02d}-{minutes:02d}-{secs:02d}"
+
+    return f"{minutes:02d}-{secs:02d}"
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
@@ -148,6 +181,7 @@ def upload_video():
         "size": destination.stat().st_size,
         "url": url_for("uploaded_video", filename=filename),
         "ffprobe_available": ffprobe_available(),
+        "ffmpeg_available": ffmpeg_available(),
     })
 
 
@@ -159,14 +193,12 @@ def analyze_video():
     intro_seconds = payload.get("intro_seconds", 5)
     clip_seconds = payload.get("clip_seconds", 30)
 
-    safe_filename = secure_filename(Path(filename).name)
+    safe_filename, video_path = safe_uploaded_video(filename)
 
-    if not safe_filename or safe_filename != filename:
+    if not safe_filename:
         return jsonify({"message": "Nombre de archivo inválido."}), 400
 
-    video_path = UPLOAD_FOLDER / safe_filename
-
-    if not video_path.exists() or not video_path.is_file():
+    if video_path is None:
         return jsonify({"message": "El video cargado ya no está disponible."}), 404
 
     try:
@@ -203,12 +235,152 @@ def analyze_video():
         "clip_seconds": clip_seconds,
         "segments": segments,
         "total_segments": len(segments),
+        "ffmpeg_available": ffmpeg_available(),
+    })
+
+
+@app.post("/generate-clip")
+def generate_clip():
+    payload = request.get_json(silent=True) or {}
+
+    filename = payload.get("filename", "")
+    clip_index = payload.get("index")
+    start = payload.get("start")
+    end = payload.get("end")
+
+    safe_filename, video_path = safe_uploaded_video(filename)
+
+    if not safe_filename:
+        return jsonify({"message": "Nombre de archivo inválido."}), 400
+
+    if video_path is None:
+        return jsonify({"message": "El video cargado ya no está disponible."}), 404
+
+    if not ffmpeg_available():
+        return jsonify({
+            "message": "FFmpeg no está disponible en el PATH de Windows."
+        }), 503
+
+    try:
+        clip_index = int(clip_index)
+        start = float(start)
+        end = float(end)
+    except (TypeError, ValueError):
+        return jsonify({"message": "Los datos del clip no son válidos."}), 400
+
+    if clip_index < 1 or start < 0 or end <= start:
+        return jsonify({"message": "El rango del clip no es válido."}), 400
+
+    try:
+        metadata = probe_video(video_path)
+    except (RuntimeError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError) as error:
+        return jsonify({"message": f"No se pudo validar el video: {error}"}), 422
+
+    source_duration = float(metadata["duration"])
+
+    if start >= source_duration or end > source_duration + 0.25:
+        return jsonify({"message": "El clip está fuera de la duración del video."}), 400
+
+    end = min(end, source_duration)
+    clip_duration = end - start
+
+    project_name = secure_filename(Path(safe_filename).stem) or "video"
+    project_output = OUTPUT_FOLDER / project_name
+    project_output.mkdir(parents=True, exist_ok=True)
+
+    output_name = (
+        f"clip_{clip_index:02d}_"
+        f"{time_for_filename(start)}_"
+        f"{time_for_filename(end)}.mp4"
+    )
+    output_path = project_output / output_name
+
+    command = [
+        "ffmpeg",
+        "-y",
+        "-ss",
+        f"{start:.3f}",
+        "-i",
+        str(video_path),
+        "-t",
+        f"{clip_duration:.3f}",
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a?",
+        "-sn",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except subprocess.CalledProcessError as error:
+        detail = (error.stderr or "").strip()
+        return jsonify({
+            "message": f"FFmpeg no pudo generar el clip {clip_index:02d}.",
+            "detail": detail[-1000:] if detail else None,
+        }), 422
+
+    if not output_path.exists():
+        return jsonify({
+            "message": f"FFmpeg finalizó, pero no se encontró el clip {clip_index:02d}."
+        }), 500
+
+    return jsonify({
+        "message": f"Clip {clip_index:02d} generado correctamente.",
+        "index": clip_index,
+        "filename": output_name,
+        "size": output_path.stat().st_size,
+        "duration": round(clip_duration, 3),
+        "output_folder": str(project_output.resolve()),
+        "url": url_for(
+            "generated_clip",
+            project=project_name,
+            filename=output_name,
+        ),
+        "ffmpeg_log": (result.stderr or "")[-500:],
     })
 
 
 @app.get("/uploads/<path:filename>")
 def uploaded_video(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+
+@app.get("/outputs/<project>/<filename>")
+def generated_clip(project, filename):
+    safe_project = secure_filename(project)
+    safe_filename = secure_filename(filename)
+
+    if safe_project != project or safe_filename != filename:
+        return jsonify({"message": "Ruta de salida inválida."}), 400
+
+    return send_from_directory(
+        Path(app.config["OUTPUT_FOLDER"]) / safe_project,
+        safe_filename,
+        as_attachment=False,
+    )
 
 
 @app.errorhandler(413)

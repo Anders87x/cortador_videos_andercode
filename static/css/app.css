@@ -659,3 +659,215 @@ footer {
         width: 100%;
     }
 }
+
+
+.generation-box {
+    margin-top: 22px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    border: 1px solid rgba(124, 92, 255, 0.32);
+    border-radius: 16px;
+    background:
+        linear-gradient(135deg, rgba(124, 92, 255, 0.12), rgba(124, 92, 255, 0.035));
+}
+
+.generation-copy strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 1.08rem;
+}
+
+.generation-copy p {
+    max-width: 650px;
+    margin: 7px 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+.generation-copy code {
+    padding: 2px 5px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.22);
+    color: #d8d0ff;
+}
+
+.generation-button {
+    width: auto;
+    min-width: 230px;
+    margin-top: 0;
+}
+
+.generation-progress {
+    margin-top: 14px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(6, 9, 16, 0.56);
+}
+
+.progress-header {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.progress-header span {
+    color: #c9bfff;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.progress-track {
+    height: 9px;
+    margin-bottom: 9px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #090d15;
+    border: 1px solid var(--border);
+}
+
+.progress-bar {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #7657f5, #a58eff);
+    transition: width 0.25s ease;
+}
+
+.generated-results {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.results-heading {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.results-heading > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.results-heading h3 {
+    margin: 0;
+    font-size: 0.98rem;
+}
+
+#outputFolder {
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.generated-list {
+    display: grid;
+    gap: 8px;
+}
+
+.generated-item {
+    padding: 11px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(6, 9, 16, 0.48);
+}
+
+.generated-item strong,
+.generated-item span {
+    display: block;
+}
+
+.generated-item strong {
+    font-size: 0.82rem;
+}
+
+.generated-item span {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+
+.generated-item a {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: #ddd7ff;
+    text-decoration: none;
+    font-size: 0.76rem;
+    font-weight: 750;
+}
+
+.generated-item a:hover {
+    border-color: rgba(124, 92, 255, 0.75);
+    background: rgba(124, 92, 255, 0.1);
+}
+
+.generated-error {
+    color: var(--danger);
+    font-size: 0.78rem;
+}
+
+.segment-card.generating {
+    border-color: rgba(124, 92, 255, 0.75);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.segment-card.generated {
+    border-color: rgba(55, 217, 154, 0.38);
+    box-shadow: inset 3px 0 0 var(--success);
+}
+
+.segment-card.failed {
+    border-color: rgba(255, 107, 129, 0.4);
+    box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.ghost-button:disabled,
+.preview-segment-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@media (max-width: 700px) {
+    .generation-box,
+    .results-heading,
+    .generated-item {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .generation-button {
+        width: 100%;
+        min-width: 0;
+    }
+
+    #outputFolder {
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-all;
+    }
+
+    .generated-item a {
+        text-align: center;
+    }
+}

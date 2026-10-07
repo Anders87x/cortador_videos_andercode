@@ -39,7 +39,7 @@
                     Local
                 </span>
 
-                <span class="phase-badge">Fase 6 · Personalización</span>
+                <span class="phase-badge">Fase 7 · Branding</span>
 
                 <button
                     id="themeToggle"
@@ -236,6 +236,49 @@
                         <input id="blurStrength" class="range-input" type="range" min="5" max="40" step="1" value="25">
                         <small>Solo afecta al video ampliado que usamos como fondo.</small>
                     </div>
+
+                    <div class="branding-divider"></div>
+
+                    <label class="branding-toggle">
+                        <input id="brandingEnabled" type="checkbox">
+                        <span class="branding-toggle-ui"></span>
+                        <span>
+                            <strong>Agregar branding AnderCode</strong>
+                            <small>Título superior + firma inferior en el Reel.</small>
+                        </span>
+                    </label>
+
+                    <div id="brandingSettings" class="branding-settings hidden">
+                        <div class="field compact-field">
+                            <label for="brandingTitle">Título del Reel</label>
+                            <input
+                                id="brandingTitle"
+                                class="text-input"
+                                type="text"
+                                maxlength="70"
+                                placeholder="Ej. API de WhatsApp con Laravel"
+                            >
+                            <small>Máximo 70 caracteres.</small>
+                        </div>
+
+                        <div class="field compact-field">
+                            <label for="brandingHandle">Firma</label>
+                            <input
+                                id="brandingHandle"
+                                class="text-input"
+                                type="text"
+                                maxlength="40"
+                                value="@AnderCode"
+                                placeholder="@AnderCode"
+                            >
+                            <small>Se mostrará en la parte inferior.</small>
+                        </div>
+
+                        <label class="safe-zone-toggle">
+                            <input id="showSafeZone" type="checkbox" checked>
+                            <span>Mostrar guía para futuros subtítulos en el preview</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="summary-card">
@@ -281,6 +324,14 @@
                     <div class="vertical-stage">
                         <video id="verticalBackground" class="vertical-background" muted playsinline preload="metadata"></video>
                         <video id="verticalForeground" class="vertical-foreground" muted playsinline preload="metadata"></video>
+
+                        <div id="brandingPreview" class="branding-preview hidden" aria-hidden="true">
+                            <div id="brandingTitlePreview" class="branding-title-preview"></div>
+                            <div id="subtitleSafeZone" class="subtitle-safe-zone">
+                                Zona segura para subtítulos
+                            </div>
+                            <div id="brandingHandlePreview" class="branding-handle-preview">@AnderCode</div>
+                        </div>
                     </div>
 
                     <span class="vertical-note">

@@ -13,6 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 OUTPUT_FOLDER = BASE_DIR / "outputs"
 ALLOWED_EXTENSIONS = {"mp4", "mov", "mkv", "webm", "avi"}
+OUTPUT_FORMATS = {"original", "vertical"}
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
@@ -146,6 +147,74 @@ def time_for_filename(seconds):
     return f"{minutes:02d}-{secs:02d}"
 
 
+def build_ffmpeg_command(video_path, output_path, start, clip_duration, output_format):
+    base = [
+        "ffmpeg",
+        "-y",
+        "-ss",
+        f"{start:.3f}",
+        "-i",
+        str(video_path),
+        "-t",
+        f"{clip_duration:.3f}",
+    ]
+
+    if output_format == "vertical":
+        filter_complex = (
+            "[0:v]split=2[bg][fg];"
+            "[bg]scale=1080:1920:force_original_aspect_ratio=increase,"
+            "crop=1080:1920,boxblur=25:2[bgv];"
+            "[fg]scale=1080:1920:force_original_aspect_ratio=decrease[fgv];"
+            "[bgv][fgv]overlay=(W-w)/2:(H-h)/2,format=yuv420p[vout]"
+        )
+
+        return base + [
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[vout]",
+            "-map",
+            "0:a?",
+            "-sn",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "20",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ]
+
+    return base + [
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a?",
+        "-sn",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
@@ -247,6 +316,10 @@ def generate_clip():
     clip_index = payload.get("index")
     start = payload.get("start")
     end = payload.get("end")
+    output_format = payload.get("output_format", "original")
+
+    if output_format not in OUTPUT_FORMATS:
+        return jsonify({"message": "El formato de salida no es válido."}), 400
 
     safe_filename, video_path = safe_uploaded_video(filename)
 
@@ -285,46 +358,25 @@ def generate_clip():
     clip_duration = end - start
 
     project_name = secure_filename(Path(safe_filename).stem) or "video"
-    project_output = OUTPUT_FOLDER / project_name
+    format_folder = "vertical_9x16" if output_format == "vertical" else "original"
+    project_output = OUTPUT_FOLDER / project_name / format_folder
     project_output.mkdir(parents=True, exist_ok=True)
 
+    prefix = "reel" if output_format == "vertical" else "clip"
     output_name = (
-        f"clip_{clip_index:02d}_"
+        f"{prefix}_{clip_index:02d}_"
         f"{time_for_filename(start)}_"
         f"{time_for_filename(end)}.mp4"
     )
     output_path = project_output / output_name
 
-    command = [
-        "ffmpeg",
-        "-y",
-        "-ss",
-        f"{start:.3f}",
-        "-i",
-        str(video_path),
-        "-t",
-        f"{clip_duration:.3f}",
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a?",
-        "-sn",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "192k",
-        "-movflags",
-        "+faststart",
-        str(output_path),
-    ]
+    command = build_ffmpeg_command(
+        video_path,
+        output_path,
+        start,
+        clip_duration,
+        output_format,
+    )
 
     try:
         result = subprocess.run(
@@ -353,10 +405,13 @@ def generate_clip():
         "filename": output_name,
         "size": output_path.stat().st_size,
         "duration": round(clip_duration, 3),
+        "output_format": output_format,
+        "resolution": "1080x1920" if output_format == "vertical" else f"{metadata.get('width')}x{metadata.get('height')}",
         "output_folder": str(project_output.resolve()),
         "url": url_for(
             "generated_clip",
             project=project_name,
+            format_folder=format_folder,
             filename=output_name,
         ),
         "ffmpeg_log": (result.stderr or "")[-500:],
@@ -368,16 +423,22 @@ def uploaded_video(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
 
-@app.get("/outputs/<project>/<filename>")
-def generated_clip(project, filename):
+@app.get("/outputs/<project>/<format_folder>/<filename>")
+def generated_clip(project, format_folder, filename):
     safe_project = secure_filename(project)
+    safe_format = secure_filename(format_folder)
     safe_filename = secure_filename(filename)
 
-    if safe_project != project or safe_filename != filename:
+    if (
+        safe_project != project
+        or safe_format != format_folder
+        or safe_filename != filename
+        or format_folder not in {"original", "vertical_9x16"}
+    ):
         return jsonify({"message": "Ruta de salida inválida."}), 400
 
     return send_from_directory(
-        Path(app.config["OUTPUT_FOLDER"]) / safe_project,
+        Path(app.config["OUTPUT_FOLDER"]) / safe_project / safe_format,
         safe_filename,
         as_attachment=False,
     )

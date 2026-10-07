@@ -41,6 +41,12 @@ const outputFolder = document.getElementById("outputFolder");
 const generationDescription = document.getElementById("generationDescription");
 const outputFormatSummary = document.getElementById("outputFormatSummary");
 const outputFormatInputs = [...document.querySelectorAll('input[name="outputFormat"]')];
+const verticalSettings = document.getElementById("verticalSettings");
+const contentScale = document.getElementById("contentScale");
+const contentScaleValue = document.getElementById("contentScaleValue");
+const blurStrength = document.getElementById("blurStrength");
+const blurStrengthValue = document.getElementById("blurStrengthValue");
+const verticalPositionInputs = [...document.querySelectorAll('input[name="verticalPosition"]')];
 
 let selectedFile = null;
 let objectUrl = null;
@@ -91,20 +97,50 @@ function pauseVerticalPreview() {
     verticalForeground.pause();
 }
 
+function getVerticalPosition() {
+    return verticalPositionInputs.find((input) => input.checked)?.value || "center";
+}
+
+function updateVerticalPreviewStyle() {
+    const scale = Number(contentScale.value) || 100;
+    const blur = Number(blurStrength.value) || 25;
+    const position = getVerticalPosition();
+
+    contentScaleValue.textContent = `${scale}%`;
+    blurStrengthValue.textContent = String(blur);
+
+    verticalForeground.style.width = `${scale}%`;
+    verticalForeground.style.height = `${scale}%`;
+
+    verticalForeground.classList.remove(
+        "position-top",
+        "position-center",
+        "position-bottom"
+    );
+    verticalForeground.classList.add(`position-${position}`);
+
+    const previewBlur = Math.max(4, Math.round(blur * 0.72));
+    verticalBackground.style.filter =
+        `blur(${previewBlur}px) brightness(0.62)`;
+}
+
 function updateOutputFormat() {
     outputFormat = getOutputFormat();
     const isVertical = outputFormat === "vertical";
 
     verticalPreviewCard.classList.toggle("hidden", !isVertical);
+    verticalSettings.classList.toggle("hidden", !isVertical);
+
     outputFormatSummary.textContent = isVertical
         ? "Salida: Reel 9:16 · 1080×1920"
         : "Salida: Original";
 
     generationDescription.innerHTML = isVertical
-        ? 'Los clips se exportarán en <strong>1080×1920</strong>, con el video completo centrado y un fondo desenfocado. Se guardarán dentro de <code>outputs/</code>.'
+        ? 'Los clips se exportarán en <strong>1080×1920</strong>, respetando el tamaño, posición y desenfoque configurados en el preview. Se guardarán dentro de <code>outputs/</code>.'
         : 'Los clips se exportarán en MP4 manteniendo la resolución original. Se guardarán dentro de <code>outputs/</code>.';
 
     if (isVertical) {
+        updateVerticalPreviewStyle();
         syncVerticalPreview(true);
 
         if (!videoPreview.paused) {
@@ -248,7 +284,8 @@ function selectFile(file) {
     videoPreview.load();
     verticalBackground.load();
     verticalForeground.load();
-    updateOutputFormat();
+    updateVerticalPreviewStyle();
+updateOutputFormat();
 }
 
 function renderMetadata(metadata) {
@@ -363,6 +400,11 @@ function setGenerationControlsDisabled(disabled) {
     outputFormatInputs.forEach((input) => {
         input.disabled = disabled;
     });
+    verticalPositionInputs.forEach((input) => {
+        input.disabled = disabled;
+    });
+    contentScale.disabled = disabled;
+    blurStrength.disabled = disabled;
 
     updateSelectedCount();
 }
@@ -450,6 +492,32 @@ videoPreview.addEventListener("timeupdate", () => {
 
 outputFormatInputs.forEach((input) => {
     input.addEventListener("change", updateOutputFormat);
+});
+
+contentScale.addEventListener("input", () => {
+    updateVerticalPreviewStyle();
+
+    if (currentSegments.length && !generationInProgress) {
+        resetGeneration();
+    }
+});
+
+blurStrength.addEventListener("input", () => {
+    updateVerticalPreviewStyle();
+
+    if (currentSegments.length && !generationInProgress) {
+        resetGeneration();
+    }
+});
+
+verticalPositionInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+        updateVerticalPreviewStyle();
+
+        if (currentSegments.length && !generationInProgress) {
+            resetGeneration();
+        }
+    });
 });
 
 introSeconds.addEventListener("input", () => {
@@ -618,7 +686,7 @@ generateButton.addEventListener("click", async () => {
 
     generateButton.textContent = "Generando clips...";
     const formatLabel = outputFormat === "vertical"
-        ? "Reel 9:16"
+        ? `Reel 9:16 · ${contentScale.value}% · ${getVerticalPosition()}`
         : "formato original";
 
     setStatus(
@@ -655,6 +723,9 @@ generateButton.addEventListener("click", async () => {
                     start: segment.start,
                     end: segment.end,
                     output_format: outputFormat,
+                    vertical_scale: Number(contentScale.value) || 100,
+                    vertical_position: getVerticalPosition(),
+                    blur_strength: Number(blurStrength.value) || 25,
                 }),
             });
 

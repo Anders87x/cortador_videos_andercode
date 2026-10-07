@@ -1826,3 +1826,50 @@ html[data-theme="light"] .format-option:has(input:checked) {
         inset 3px 0 0 var(--accent),
         0 0 0 1px rgba(105, 72, 232, 0.04);
 }
+
+
+/* Wider hero composition */
+.hero {
+    position: relative;
+    display: block;
+    padding: 50px 0 30px;
+}
+
+.hero-copy {
+    width: 100%;
+}
+
+.hero h1 {
+    max-width: 1080px;
+    font-size: clamp(2.7rem, 5.8vw, 5.2rem);
+    line-height: 0.96;
+}
+
+.hero p {
+    max-width: 760px;
+}
+
+.hero-side {
+    position: absolute;
+    right: 0;
+    bottom: 30px;
+    min-width: 250px;
+}
+
+@media (max-width: 980px) {
+    .hero {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hero-side {
+        position: static;
+        min-width: 0;
+        align-items: flex-start;
+    }
+
+    .hero h1 {
+        max-width: 100%;
+    }
+}

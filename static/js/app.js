@@ -27,6 +27,7 @@ const analysisSummary = document.getElementById("analysisSummary");
 const segmentsCount = document.getElementById("segmentsCount");
 const segmentsList = document.getElementById("segmentsList");
 const selectAllButton = document.getElementById("selectAllButton");
+const deselectAllButton = document.getElementById("deselectAllButton");
 
 const selectedCount = document.getElementById("selectedCount");
 const generateButton = document.getElementById("generateButton");
@@ -109,15 +110,46 @@ function updateVerticalPreviewStyle() {
     contentScaleValue.textContent = `${scale}%`;
     blurStrengthValue.textContent = String(blur);
 
-    verticalForeground.style.width = `${scale}%`;
-    verticalForeground.style.height = `${scale}%`;
+    const stage = verticalForeground.parentElement;
+    const stageWidth = stage?.clientWidth || 0;
+    const stageHeight = stage?.clientHeight || 0;
+    const sourceWidth = videoPreview.videoWidth || verticalForeground.videoWidth || 0;
+    const sourceHeight = videoPreview.videoHeight || verticalForeground.videoHeight || 0;
 
-    verticalForeground.classList.remove(
-        "position-top",
-        "position-center",
-        "position-bottom"
-    );
-    verticalForeground.classList.add(`position-${position}`);
+    if (stageWidth > 0 && stageHeight > 0 && sourceWidth > 0 && sourceHeight > 0) {
+        const scaleRatio = scale / 100;
+        const targetWidth = stageWidth * scaleRatio;
+        const targetHeight = stageHeight * scaleRatio;
+        const sourceRatio = sourceWidth / sourceHeight;
+        const targetRatio = targetWidth / targetHeight;
+
+        let renderedWidth;
+        let renderedHeight;
+
+        if (sourceRatio >= targetRatio) {
+            renderedWidth = targetWidth;
+            renderedHeight = renderedWidth / sourceRatio;
+        } else {
+            renderedHeight = targetHeight;
+            renderedWidth = renderedHeight * sourceRatio;
+        }
+
+        let top = 0;
+
+        if (position === "center") {
+            top = (stageHeight - renderedHeight) / 2;
+        } else if (position === "bottom") {
+            top = stageHeight - renderedHeight;
+        }
+
+        verticalForeground.style.width = `${renderedWidth}px`;
+        verticalForeground.style.height = `${renderedHeight}px`;
+        verticalForeground.style.left = "50%";
+        verticalForeground.style.top = `${Math.max(0, top)}px`;
+        verticalForeground.style.right = "auto";
+        verticalForeground.style.bottom = "auto";
+        verticalForeground.style.transform = "translateX(-50%)";
+    }
 
     const previewBlur = Math.max(4, Math.round(blur * 0.72));
     verticalBackground.style.filter =
@@ -312,8 +344,8 @@ function updateSelectedCount() {
     selectedCount.textContent = `${checked.length} ${checked.length === 1 ? "clip seleccionado" : "clips seleccionados"}`;
     generateButton.disabled = generationInProgress || !ffmpegReady || checked.length === 0;
 
-    const allChecked = checkboxes.length > 0 && checked.length === checkboxes.length;
-    selectAllButton.textContent = allChecked ? "Deseleccionar todos" : "Seleccionar todos";
+    selectAllButton.disabled = generationInProgress || checkboxes.length === 0;
+    deselectAllButton.disabled = generationInProgress || checked.length === 0;
 }
 
 function renderSegments(segments) {
@@ -392,6 +424,7 @@ function setGenerationControlsDisabled(disabled) {
     });
 
     selectAllButton.disabled = disabled;
+    deselectAllButton.disabled = disabled;
     introSeconds.disabled = disabled;
     clipSeconds.disabled = disabled;
     videoInput.disabled = disabled;
@@ -464,7 +497,18 @@ dropZone.addEventListener("drop", (event) => {
 
 videoPreview.addEventListener("loadedmetadata", () => {
     recalculateClips();
+    updateVerticalPreviewStyle();
     syncVerticalPreview(true);
+});
+
+verticalForeground.addEventListener("loadedmetadata", () => {
+    updateVerticalPreviewStyle();
+});
+
+window.addEventListener("resize", () => {
+    if (outputFormat === "vertical") {
+        updateVerticalPreviewStyle();
+    }
 });
 
 videoPreview.addEventListener("play", () => {
@@ -545,11 +589,16 @@ clipSeconds.addEventListener("input", () => {
 });
 
 selectAllButton.addEventListener("click", () => {
-    const checkboxes = [...document.querySelectorAll(".segment-checkbox")];
-    const allChecked = checkboxes.length > 0 && checkboxes.every((checkbox) => checkbox.checked);
+    document.querySelectorAll(".segment-checkbox").forEach((checkbox) => {
+        checkbox.checked = true;
+    });
 
-    checkboxes.forEach((checkbox) => {
-        checkbox.checked = !allChecked;
+    updateSelectedCount();
+});
+
+deselectAllButton.addEventListener("click", () => {
+    document.querySelectorAll(".segment-checkbox").forEach((checkbox) => {
+        checkbox.checked = false;
     });
 
     updateSelectedCount();

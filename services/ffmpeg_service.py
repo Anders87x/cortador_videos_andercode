@@ -150,7 +150,7 @@ def build_vertical_filter(
     if branding_enabled and branding_handle:
         branding_items.append(("handle", branding_handle))
 
-    base_label = "brand0" if branding_items else "vout"
+    base_label = "basev"
 
     filter_parts = [
         "[0:v]split=2[bg][fg]",
@@ -165,6 +165,8 @@ def build_vertical_filter(
         f"[bgv][fgv]overlay=(W-w)/2:{y_expression}[{base_label}]",
     ]
 
+    current_label = base_label
+
     if branding_items:
         font_path = find_branding_font()
 
@@ -174,7 +176,6 @@ def build_vertical_filter(
             )
 
         escaped_font = escape_filter_path(font_path)
-        current_label = base_label
 
         for index, (kind, text) in enumerate(branding_items, start=1):
             next_label = f"brand{index}"
@@ -204,10 +205,7 @@ def build_vertical_filter(
             )
             current_label = next_label
 
-        filter_parts.append(f"[{current_label}]format=yuv420p[vout]")
-    else:
-        filter_parts.append("[vout]format=yuv420p[vout_fmt]")
-        filter_parts[-1] = "[vout]format=yuv420p[vout]"
+    filter_parts.append(f"[{current_label}]format=yuv420p[vout]")
 
     return ";".join(filter_parts)
 

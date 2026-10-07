@@ -136,6 +136,9 @@ def generate_video_clip(payload, upload_folder, output_folder):
     vertical_scale = payload.get("vertical_scale", 100)
     vertical_position = payload.get("vertical_position", "center")
     blur_strength = payload.get("blur_strength", 25)
+    branding_enabled = payload.get("branding_enabled") is True
+    branding_title = str(payload.get("branding_title") or "").strip()
+    branding_handle = str(payload.get("branding_handle") or "").strip()
 
     if output_format not in OUTPUT_FORMATS:
         raise VideoServiceError(
@@ -169,6 +172,24 @@ def generate_video_clip(payload, upload_folder, output_folder):
             "El desenfoque debe estar entre 5 y 40.",
             400,
         )
+
+    if len(branding_title) > 70:
+        raise VideoServiceError(
+            "El título de branding no puede superar 70 caracteres.",
+            400,
+        )
+
+    if len(branding_handle) > 40:
+        raise VideoServiceError(
+            "La firma de branding no puede superar 40 caracteres.",
+            400,
+        )
+
+    branding_title = " ".join(branding_title.splitlines())
+    branding_handle = " ".join(branding_handle.splitlines())
+
+    if output_format != "vertical":
+        branding_enabled = False
 
     safe_filename, video_path = safe_uploaded_video(
         filename,
@@ -257,7 +278,12 @@ def generate_video_clip(payload, upload_folder, output_folder):
             vertical_scale,
             vertical_position,
             blur_strength,
+            branding_enabled,
+            branding_title,
+            branding_handle,
         )
+    except RuntimeError as error:
+        raise VideoServiceError(str(error), 503) from error
     except subprocess.CalledProcessError as error:
         detail = (error.stderr or "").strip()
         raise VideoServiceError(
@@ -293,6 +319,9 @@ def generate_video_clip(payload, upload_folder, output_folder):
         "blur_strength": (
             blur_strength if output_format == "vertical" else None
         ),
+        "branding_enabled": branding_enabled,
+        "branding_title": branding_title if branding_enabled else None,
+        "branding_handle": branding_handle if branding_enabled else None,
         "output_folder": str(project_output.resolve()),
         "project_name": project_name,
         "format_folder": format_folder,

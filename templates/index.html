@@ -111,6 +111,30 @@
                     <small>Usaremos este valor para preparar los cortes.</small>
                 </div>
 
+                <div class="field">
+                    <label>Formato de salida</label>
+
+                    <div class="format-options">
+                        <label class="format-option">
+                            <input type="radio" name="outputFormat" value="original" checked>
+                            <span class="format-option-copy">
+                                <strong>Original</strong>
+                                <small>Mantiene resolución y proporción.</small>
+                            </span>
+                            <span class="format-ratio landscape">16:9</span>
+                        </label>
+
+                        <label class="format-option">
+                            <input type="radio" name="outputFormat" value="vertical">
+                            <span class="format-option-copy">
+                                <strong>Reel 9:16</strong>
+                                <small>1080×1920 con fondo desenfocado.</small>
+                            </span>
+                            <span class="format-ratio portrait">9:16</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="summary-card">
                     <span>Duración detectada</span>
                     <strong id="videoDuration">—</strong>
@@ -135,7 +159,32 @@
                 <p>Selecciona un video para mostrar la vista previa.</p>
             </div>
 
-            <video id="videoPreview" class="video-preview hidden" controls preload="metadata"></video>
+            <div id="previewWorkspace" class="preview-workspace hidden">
+                <div class="source-preview">
+                    <div class="preview-label">
+                        <span>CONTROL DE REPRODUCCIÓN</span>
+                        <strong>Video original</strong>
+                    </div>
+
+                    <video id="videoPreview" class="video-preview" controls preload="metadata"></video>
+                </div>
+
+                <div id="verticalPreviewCard" class="vertical-preview-card hidden">
+                    <div class="preview-label">
+                        <span>PREVIEW DE SALIDA</span>
+                        <strong>Reel 9:16 · 1080×1920</strong>
+                    </div>
+
+                    <div class="vertical-stage">
+                        <video id="verticalBackground" class="vertical-background" muted playsinline preload="metadata"></video>
+                        <video id="verticalForeground" class="vertical-foreground" muted playsinline preload="metadata"></video>
+                    </div>
+
+                    <span class="vertical-note">
+                        El fondo usa el mismo video ampliado y desenfocado. El contenido original no se recorta.
+                    </span>
+                </div>
+            </div>
         </section>
 
         <section id="segmentsPanel" class="panel segments-panel hidden">
@@ -166,10 +215,14 @@
                 <div class="generation-copy">
                     <span class="eyebrow">GENERACIÓN LOCAL</span>
                     <strong id="selectedCount">0 clips seleccionados</strong>
-                    <p>
+                    <p id="generationDescription">
                         Los clips se exportarán en MP4 manteniendo la resolución original.
                         Se guardarán dentro de la carpeta <code>outputs/</code>.
                     </p>
+
+                    <span id="outputFormatSummary" class="output-format-summary">
+                        Salida: Original
+                    </span>
                 </div>
 
                 <button id="generateButton" class="primary-button generation-button" type="button" disabled>

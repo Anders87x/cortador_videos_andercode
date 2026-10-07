@@ -179,9 +179,9 @@ def build_ffmpeg_command(
             target_height -= 1
 
         y_expression = {
-            "top": "max(0,min(H-h,160))",
+            "top": "0",
             "center": "(H-h)/2",
-            "bottom": "max(0,H-h-220)",
+            "bottom": "H-h",
         }[vertical_position]
 
         filter_complex = (

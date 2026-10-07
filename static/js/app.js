@@ -1,3 +1,8 @@
+const themeToggle = document.getElementById("themeToggle");
+const themeIcon = document.getElementById("themeIcon");
+const themeLabel = document.getElementById("themeLabel");
+const workflowLinks = [...document.querySelectorAll(".workflow-link")];
+
 const videoInput = document.getElementById("videoInput");
 const dropZone = document.getElementById("dropZone");
 const uploadForm = document.getElementById("uploadForm");
@@ -58,6 +63,83 @@ let generationInProgress = false;
 let ffmpegReady = false;
 let outputFormat = "original";
 
+const THEME_STORAGE_KEY = "andercode-video-theme";
+
+function getStoredTheme() {
+    try {
+        return localStorage.getItem(THEME_STORAGE_KEY);
+    } catch (_error) {
+        return null;
+    }
+}
+
+function updateThemeControl() {
+    const theme = document.documentElement.dataset.theme || "dark";
+    const isDark = theme === "dark";
+
+    themeIcon.textContent = isDark ? "☾" : "☀";
+    themeLabel.textContent = isDark ? "Oscuro" : "Claro";
+    themeToggle.setAttribute(
+        "aria-label",
+        isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"
+    );
+    themeToggle.title =
+        isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+}
+
+function setTheme(theme, persist = true) {
+    document.documentElement.dataset.theme = theme;
+    updateThemeControl();
+
+    if (persist) {
+        try {
+            localStorage.setItem(THEME_STORAGE_KEY, theme);
+        } catch (_error) {
+            // El navegador puede bloquear el almacenamiento local.
+        }
+    }
+}
+
+function setActiveWorkflow(targetId) {
+    workflowLinks.forEach((link) => {
+        const active = link.dataset.workflowTarget === targetId;
+        link.classList.toggle("active", active);
+
+        if (active) {
+            link.setAttribute("aria-current", "step");
+        } else {
+            link.removeAttribute("aria-current");
+        }
+    });
+}
+
+function setupWorkflowObserver() {
+    if (!("IntersectionObserver" in window)) {
+        return;
+    }
+
+    const sections = workflowLinks
+        .map((link) => document.getElementById(link.dataset.workflowTarget))
+        .filter(Boolean);
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            const visible = entries
+                .filter((entry) => entry.isIntersecting)
+                .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+            if (visible[0]) {
+                setActiveWorkflow(visible[0].target.id);
+            }
+        },
+        {
+            rootMargin: "-22% 0px -58% 0px",
+            threshold: [0.05, 0.2, 0.45],
+        }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+}
 
 
 function getOutputFormat() {
@@ -245,6 +327,13 @@ function setStatus(message = "", type = "") {
     uploadStatus.textContent = message;
     uploadStatus.className = "upload-status";
 
+    if (!message) {
+        uploadStatus.classList.add("hidden");
+        return;
+    }
+
+    uploadStatus.classList.add("visible");
+
     if (type) {
         uploadStatus.classList.add(type);
     }
@@ -316,7 +405,9 @@ function selectFile(file) {
     videoPreview.load();
     verticalBackground.load();
     verticalForeground.load();
-    updateVerticalPreviewStyle();
+    updateThemeControl();
+setupWorkflowObserver();
+updateVerticalPreviewStyle();
 updateOutputFormat();
 }
 
@@ -465,6 +556,25 @@ function renderGeneratedClip(data) {
     item.append(info, link);
     generatedList.appendChild(item);
 }
+
+themeToggle.addEventListener("click", () => {
+    const currentTheme = document.documentElement.dataset.theme || "dark";
+    setTheme(currentTheme === "dark" ? "light" : "dark");
+});
+
+workflowLinks.forEach((link) => {
+    link.addEventListener("click", () => {
+        setActiveWorkflow(link.dataset.workflowTarget);
+    });
+});
+
+const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+systemTheme.addEventListener?.("change", (event) => {
+    if (!getStoredTheme()) {
+        setTheme(event.matches ? "dark" : "light", false);
+    }
+});
 
 videoInput.addEventListener("change", () => {
     selectFile(videoInput.files[0]);

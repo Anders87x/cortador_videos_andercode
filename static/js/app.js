@@ -41,6 +41,7 @@ let uploadedFilename = null;
 let activePreviewEnd = null;
 let currentSegments = [];
 let generationInProgress = false;
+let ffmpegReady = false;
 
 function formatBytes(bytes) {
     if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -126,6 +127,7 @@ function resetGeneration() {
 function resetAnalysis() {
     uploadedFilename = null;
     currentSegments = [];
+    ffmpegReady = false;
     analyzeButton.classList.add("hidden");
     segmentsPanel.classList.add("hidden");
     metadataGrid.innerHTML = "";
@@ -188,7 +190,7 @@ function updateSelectedCount() {
     const checked = checkboxes.filter((checkbox) => checkbox.checked);
 
     selectedCount.textContent = `${checked.length} ${checked.length === 1 ? "clip seleccionado" : "clips seleccionados"}`;
-    generateButton.disabled = generationInProgress || checked.length === 0;
+    generateButton.disabled = generationInProgress || !ffmpegReady || checked.length === 0;
 
     const allChecked = checkboxes.length > 0 && checked.length === checkboxes.length;
     selectAllButton.textContent = allChecked ? "Deseleccionar todos" : "Seleccionar todos";
@@ -459,7 +461,10 @@ analyzeButton.addEventListener("click", async () => {
         analysisSummary.textContent = `${data.total_segments} cortes calculados con FFprobe`;
         segmentsPanel.classList.remove("hidden");
 
-        if (!data.ffmpeg_available) {
+        ffmpegReady = Boolean(data.ffmpeg_available);
+        updateSelectedCount();
+
+        if (!ffmpegReady) {
             generateButton.disabled = true;
             setStatus(
                 "Análisis completado, pero FFmpeg no está disponible para generar clips.",

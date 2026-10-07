@@ -253,6 +253,15 @@ function updateBrandingPreview() {
     brandingHandlePreview.textContent = handle;
     brandingHandlePreview.classList.toggle("hidden", !handle);
 
+    const handleLength = handle.length;
+    const handleFontSize =
+        handleLength <= 16 ? "0.76rem" :
+        handleLength <= 24 ? "0.66rem" :
+        handleLength <= 32 ? "0.58rem" :
+        "0.52rem";
+
+    brandingHandlePreview.style.fontSize = handleFontSize;
+
     subtitleSafeZone.classList.toggle("hidden", !showSafeZone.checked);
 }
 

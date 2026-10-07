@@ -10,7 +10,11 @@ const fileName = document.getElementById("fileName");
 const fileSize = document.getElementById("fileSize");
 
 const previewPlaceholder = document.getElementById("previewPlaceholder");
+const previewWorkspace = document.getElementById("previewWorkspace");
 const videoPreview = document.getElementById("videoPreview");
+const verticalPreviewCard = document.getElementById("verticalPreviewCard");
+const verticalBackground = document.getElementById("verticalBackground");
+const verticalForeground = document.getElementById("verticalForeground");
 
 const introSeconds = document.getElementById("introSeconds");
 const clipSeconds = document.getElementById("clipSeconds");
@@ -34,6 +38,9 @@ const progressDetail = document.getElementById("progressDetail");
 const generatedResults = document.getElementById("generatedResults");
 const generatedList = document.getElementById("generatedList");
 const outputFolder = document.getElementById("outputFolder");
+const generationDescription = document.getElementById("generationDescription");
+const outputFormatSummary = document.getElementById("outputFormatSummary");
+const outputFormatInputs = [...document.querySelectorAll('input[name="outputFormat"]')];
 
 let selectedFile = null;
 let objectUrl = null;
@@ -42,6 +49,75 @@ let activePreviewEnd = null;
 let currentSegments = [];
 let generationInProgress = false;
 let ffmpegReady = false;
+let outputFormat = "original";
+
+
+
+function getOutputFormat() {
+    return outputFormatInputs.find((input) => input.checked)?.value || "original";
+}
+
+function syncVerticalPreview(force = false) {
+    if (!Number.isFinite(videoPreview.currentTime)) {
+        return;
+    }
+
+    [verticalBackground, verticalForeground].forEach((video) => {
+        if (force || Math.abs(video.currentTime - videoPreview.currentTime) > 0.2) {
+            try {
+                video.currentTime = videoPreview.currentTime;
+            } catch (_error) {
+                // El navegador puede ignorar el seek hasta tener metadatos.
+            }
+        }
+    });
+}
+
+async function playVerticalPreview() {
+    if (outputFormat !== "vertical") {
+        return;
+    }
+
+    syncVerticalPreview(true);
+
+    await Promise.allSettled([
+        verticalBackground.play(),
+        verticalForeground.play(),
+    ]);
+}
+
+function pauseVerticalPreview() {
+    verticalBackground.pause();
+    verticalForeground.pause();
+}
+
+function updateOutputFormat() {
+    outputFormat = getOutputFormat();
+    const isVertical = outputFormat === "vertical";
+
+    verticalPreviewCard.classList.toggle("hidden", !isVertical);
+    outputFormatSummary.textContent = isVertical
+        ? "Salida: Reel 9:16 · 1080×1920"
+        : "Salida: Original";
+
+    generationDescription.innerHTML = isVertical
+        ? 'Los clips se exportarán en <strong>1080×1920</strong>, con el video completo centrado y un fondo desenfocado. Se guardarán dentro de <code>outputs/</code>.'
+        : 'Los clips se exportarán en MP4 manteniendo la resolución original. Se guardarán dentro de <code>outputs/</code>.';
+
+    if (isVertical) {
+        syncVerticalPreview(true);
+
+        if (!videoPreview.paused) {
+            playVerticalPreview();
+        }
+    } else {
+        pauseVerticalPreview();
+    }
+
+    if (currentSegments.length && !generationInProgress) {
+        resetGeneration();
+    }
+}
 
 function formatBytes(bytes) {
     if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -163,9 +239,16 @@ function selectFile(file) {
 
     objectUrl = URL.createObjectURL(file);
     videoPreview.src = objectUrl;
-    videoPreview.classList.remove("hidden");
+    verticalBackground.src = objectUrl;
+    verticalForeground.src = objectUrl;
+
     previewPlaceholder.classList.add("hidden");
+    previewWorkspace.classList.remove("hidden");
+
     videoPreview.load();
+    verticalBackground.load();
+    verticalForeground.load();
+    updateOutputFormat();
 }
 
 function renderMetadata(metadata) {
@@ -277,6 +360,9 @@ function setGenerationControlsDisabled(disabled) {
     videoInput.disabled = disabled;
     uploadButton.disabled = disabled;
     analyzeButton.disabled = disabled;
+    outputFormatInputs.forEach((input) => {
+        input.disabled = disabled;
+    });
 
     updateSelectedCount();
 }
@@ -290,7 +376,8 @@ function renderGeneratedClip(data) {
     const meta = document.createElement("span");
 
     name.textContent = data.filename;
-    meta.textContent = `${formatDuration(data.duration)} · ${formatBytes(data.size)}`;
+    const formatLabel = data.output_format === "vertical" ? "Reel 9:16" : "Original";
+    meta.textContent = `${formatDuration(data.duration)} · ${formatBytes(data.size)} · ${formatLabel} · ${data.resolution || "—"}`;
 
     info.append(name, meta);
 
@@ -333,12 +420,36 @@ dropZone.addEventListener("drop", (event) => {
     }
 });
 
-videoPreview.addEventListener("loadedmetadata", recalculateClips);
+videoPreview.addEventListener("loadedmetadata", () => {
+    recalculateClips();
+    syncVerticalPreview(true);
+});
+
+videoPreview.addEventListener("play", () => {
+    playVerticalPreview();
+});
+
+videoPreview.addEventListener("pause", () => {
+    pauseVerticalPreview();
+});
+
+videoPreview.addEventListener("seeking", () => {
+    syncVerticalPreview(true);
+});
+
 videoPreview.addEventListener("timeupdate", () => {
+    if (outputFormat === "vertical") {
+        syncVerticalPreview();
+    }
+
     if (activePreviewEnd !== null && videoPreview.currentTime >= activePreviewEnd) {
         videoPreview.pause();
         activePreviewEnd = null;
     }
+});
+
+outputFormatInputs.forEach((input) => {
+    input.addEventListener("change", updateOutputFormat);
 });
 
 introSeconds.addEventListener("input", () => {
@@ -506,8 +617,12 @@ generateButton.addEventListener("click", async () => {
     setGenerationControlsDisabled(true);
 
     generateButton.textContent = "Generando clips...";
+    const formatLabel = outputFormat === "vertical"
+        ? "Reel 9:16"
+        : "formato original";
+
     setStatus(
-        `Generando ${selectedSegments.length} ${selectedSegments.length === 1 ? "clip" : "clips"} con FFmpeg...`
+        `Generando ${selectedSegments.length} ${selectedSegments.length === 1 ? "clip" : "clips"} en ${formatLabel} con FFmpeg...`
     );
 
     let completed = 0;
@@ -517,7 +632,9 @@ generateButton.addEventListener("click", async () => {
         const segment = selectedSegments[position];
         const card = document.querySelector(`[data-segment-index="${segment.index}"]`);
 
-        progressTitle.textContent = `Generando clip ${String(segment.index).padStart(2, "0")}`;
+        progressTitle.textContent = outputFormat === "vertical"
+            ? `Generando Reel ${String(segment.index).padStart(2, "0")}`
+            : `Generando clip ${String(segment.index).padStart(2, "0")}`;
         progressDetail.textContent =
             `${formatDuration(segment.start)} → ${formatDuration(segment.end)}`;
 
@@ -537,6 +654,7 @@ generateButton.addEventListener("click", async () => {
                     index: segment.index,
                     start: segment.start,
                     end: segment.end,
+                    output_format: outputFormat,
                 }),
             });
 
@@ -594,9 +712,12 @@ generateButton.addEventListener("click", async () => {
     setStatus(
         failed
             ? `Proceso terminado: ${completed} clips generados y ${failed} con error.`
-            : `Listo. Se generaron ${completed} clips dentro de outputs/.`,
+            : `Listo. Se generaron ${completed} clips en ${formatLabel} dentro de outputs/.`,
         failed ? "error" : "success"
     );
 
     generatedResults.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+
+
+updateOutputFormat();

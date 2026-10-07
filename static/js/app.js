@@ -408,7 +408,7 @@ function selectFile(file) {
     fileSize.textContent = formatBytes(file.size);
 
     if (!brandingTitle.value.trim()) {
-        brandingTitle.value = file.name.replace(/.[^/.]+$/, "").replace(/[_-]+/g, " ");
+        brandingTitle.value = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]+/g, " ");
     }
     fileInfo.classList.remove("hidden");
     uploadButton.disabled = false;
@@ -431,11 +431,7 @@ function selectFile(file) {
     verticalForeground.load();
     updateVerticalPreviewStyle();
     updateBrandingPreview();
-    updateThemeControl();
-setupWorkflowObserver();
-updateVerticalPreviewStyle();
-updateBrandingPreview();
-updateOutputFormat();
+    updateOutputFormat();
 }
 
 function renderMetadata(metadata) {
@@ -996,4 +992,8 @@ generateButton.addEventListener("click", async () => {
 });
 
 
+updateThemeControl();
+setupWorkflowObserver();
+updateVerticalPreviewStyle();
+updateBrandingPreview();
 updateOutputFormat();

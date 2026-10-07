@@ -116,7 +116,16 @@ def branding_font_size(text, large=True):
             return 44
         return 36
 
-    return 38 if length <= 24 else 32
+    if length <= 16:
+        return 38
+
+    if length <= 24:
+        return 32
+
+    if length <= 32:
+        return 28
+
+    return 24
 
 
 def build_vertical_filter(

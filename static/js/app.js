@@ -65,14 +65,6 @@ let outputFormat = "original";
 
 const THEME_STORAGE_KEY = "andercode-video-theme";
 
-function getStoredTheme() {
-    try {
-        return localStorage.getItem(THEME_STORAGE_KEY);
-    } catch (_error) {
-        return null;
-    }
-}
-
 function updateThemeControl() {
     const theme = document.documentElement.dataset.theme || "dark";
     const isDark = theme === "dark";
@@ -566,14 +558,6 @@ workflowLinks.forEach((link) => {
     link.addEventListener("click", () => {
         setActiveWorkflow(link.dataset.workflowTarget);
     });
-});
-
-const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
-
-systemTheme.addEventListener?.("change", (event) => {
-    if (!getStoredTheme()) {
-        setTheme(event.matches ? "dark" : "light", false);
-    }
 });
 
 videoInput.addEventListener("change", () => {

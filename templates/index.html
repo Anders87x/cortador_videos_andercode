@@ -13,11 +13,9 @@
 
             try {
                 const savedTheme = localStorage.getItem(storageKey);
-                const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-                document.documentElement.dataset.theme =
-                    savedTheme || (systemDark ? "dark" : "light");
+                document.documentElement.dataset.theme = savedTheme || "light";
             } catch (_error) {
-                document.documentElement.dataset.theme = "dark";
+                document.documentElement.dataset.theme = "light";
             }
         })();
     </script>

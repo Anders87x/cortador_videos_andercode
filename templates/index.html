@@ -19,7 +19,7 @@
             </div>
         </div>
 
-        <span class="phase-badge">Fase 2 · Preparación</span>
+        <span class="phase-badge">Fase 3 · Análisis</span>
     </header>
 
     <main class="page-shell">
@@ -77,6 +77,10 @@
                         Cargar video al proyecto
                     </button>
 
+                    <button id="analyzeButton" class="secondary-button hidden" type="button">
+                        Analizar cortes con FFprobe
+                    </button>
+
                     <div id="uploadStatus" class="upload-status" aria-live="polite"></div>
                 </form>
             </div>
@@ -132,6 +136,31 @@
             </div>
 
             <video id="videoPreview" class="video-preview hidden" controls preload="metadata"></video>
+        </section>
+
+        <section id="segmentsPanel" class="panel segments-panel hidden">
+            <div class="panel-heading">
+                <div>
+                    <span class="step">04</span>
+                    <h2>Plan de cortes</h2>
+                </div>
+                <span id="analysisSummary" class="muted">Esperando análisis</span>
+            </div>
+
+            <div id="metadataGrid" class="metadata-grid"></div>
+
+            <div class="segments-toolbar">
+                <div>
+                    <strong id="segmentsCount">0 clips</strong>
+                    <span>Revisa cada fragmento antes de generar archivos.</span>
+                </div>
+
+                <button id="selectAllButton" class="ghost-button" type="button">
+                    Seleccionar todos
+                </button>
+            </div>
+
+            <div id="segmentsList" class="segments-list"></div>
         </section>
     </main>
 

@@ -1166,13 +1166,13 @@ footer {
 }
 
 .vertical-foreground.position-top {
-    top: 8%;
+    top: 0;
     bottom: auto;
     transform: translateX(-50%);
 }
 
 .vertical-foreground.position-bottom {
     top: auto;
-    bottom: 11%;
+    bottom: 0;
     transform: translateX(-50%);
 }

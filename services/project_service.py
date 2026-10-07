@@ -146,25 +146,26 @@ def delete_project(
     return True
 
 
+def _clear_directory(directory):
+    directory = Path(directory)
+
+    if not directory.exists():
+        return
+
+    for item in directory.iterdir():
+        if item.is_dir():
+            shutil.rmtree(item)
+        elif item.is_file():
+            item.unlink()
+
+
 def clear_projects(projects_file, upload_folder, output_folder):
     projects = _read_projects(projects_file)
 
-    for project in projects:
-        filename = project.get("filename")
-
-        if filename:
-            upload_path = Path(upload_folder) / filename
-
-            if upload_path.exists() and upload_path.is_file():
-                upload_path.unlink()
-
-        project_id = project.get("id")
-
-        if project_id:
-            project_output = Path(output_folder) / project_id
-
-            if project_output.exists() and project_output.is_dir():
-                shutil.rmtree(project_output)
+    # uploads/ y outputs/ son carpetas temporales de esta herramienta.
+    # Limpiar todo también elimina archivos antiguos no registrados.
+    _clear_directory(upload_folder)
+    _clear_directory(output_folder)
 
     _write_projects(projects_file, [])
 

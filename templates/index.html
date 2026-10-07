@@ -19,7 +19,7 @@
             </div>
         </div>
 
-        <span class="phase-badge">Fase 5 · Formato 9:16</span>
+        <span class="phase-badge">Fase 6 · Personalización</span>
     </header>
 
     <main class="page-shell">
@@ -132,6 +132,49 @@
                             </span>
                             <span class="format-ratio portrait">9:16</span>
                         </label>
+                    </div>
+                </div>
+
+                <div id="verticalSettings" class="vertical-settings hidden">
+                    <div class="vertical-settings-heading">
+                        <span>PERSONALIZAR REEL</span>
+                        <strong>Ajusta el encuadre 9:16</strong>
+                    </div>
+
+                    <div class="field compact-field">
+                        <div class="range-label">
+                            <label for="contentScale">Tamaño del video</label>
+                            <strong id="contentScaleValue">100%</strong>
+                        </div>
+                        <input id="contentScale" class="range-input" type="range" min="70" max="100" step="1" value="100">
+                        <small>Reduce el video para dejar más aire alrededor del contenido.</small>
+                    </div>
+
+                    <div class="field compact-field">
+                        <label>Posición vertical</label>
+                        <div class="position-options">
+                            <label>
+                                <input type="radio" name="verticalPosition" value="top">
+                                <span>Arriba</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="verticalPosition" value="center" checked>
+                                <span>Centro</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="verticalPosition" value="bottom">
+                                <span>Abajo</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="field compact-field">
+                        <div class="range-label">
+                            <label for="blurStrength">Desenfoque del fondo</label>
+                            <strong id="blurStrengthValue">25</strong>
+                        </div>
+                        <input id="blurStrength" class="range-input" type="range" min="5" max="40" step="1" value="25">
+                        <small>Solo afecta al video ampliado que usamos como fondo.</small>
                     </div>
                 </div>
 

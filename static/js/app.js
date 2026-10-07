@@ -739,6 +739,7 @@ function selectFile(file) {
     }
     fileInfo.classList.remove("hidden");
     uploadButton.disabled = false;
+    uploadButton.textContent = "Cargar video al proyecto";
     setStatus("");
 
     if (objectUrl) {
@@ -910,6 +911,150 @@ function renderGeneratedClip(data) {
     item.append(info, link);
     generatedList.appendChild(item);
 }
+
+presetSelect.addEventListener("change", updatePresetButtons);
+
+applyPresetButton.addEventListener("click", () => {
+    const preset = getSelectedPreset();
+
+    if (!preset.settings) {
+        setStatus("El preset seleccionado ya no existe.", "error");
+        renderPresetOptions();
+        return;
+    }
+
+    applySettings(preset.settings);
+    setStatus(`Preset "${preset.name}" aplicado correctamente.`, "success");
+});
+
+savePresetButton.addEventListener("click", () => {
+    const suggestedName = "Mi preset";
+    const name = window.prompt("Nombre del preset:", suggestedName)?.trim();
+
+    if (!name) {
+        return;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(BUILTIN_PRESETS, name)) {
+        setStatus("Ese nombre está reservado para un preset incluido.", "error");
+        return;
+    }
+
+    const customPresets = getCustomPresets();
+    customPresets[name] = captureCurrentSettings();
+
+    if (saveCustomPresets(customPresets)) {
+        const value = `custom:${name}`;
+        renderPresetOptions(value);
+        setStatus(`Preset "${name}" guardado.`, "success");
+    }
+});
+
+deletePresetButton.addEventListener("click", () => {
+    const preset = getSelectedPreset();
+
+    if (preset.type !== "custom" || !preset.name) {
+        return;
+    }
+
+    if (!window.confirm(`¿Eliminar el preset "${preset.name}"?`)) {
+        return;
+    }
+
+    const customPresets = getCustomPresets();
+    delete customPresets[preset.name];
+
+    if (saveCustomPresets(customPresets)) {
+        renderPresetOptions("builtin:Reel AnderCode");
+        setStatus(`Preset "${preset.name}" eliminado.`, "success");
+    }
+});
+
+recentProjectSelect.addEventListener("change", updateProjectButtons);
+
+openProjectButton.addEventListener("click", openRecentProject);
+
+deleteProjectButton.addEventListener("click", async () => {
+    const projectId = recentProjectSelect.value;
+    const project = recentProjects.find((item) => item.id === projectId);
+
+    if (!project) {
+        return;
+    }
+
+    const name = project.original_name || project.filename || project.id;
+
+    if (!window.confirm(`¿Eliminar "${name}" y sus clips generados?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/projects/${encodeURIComponent(projectId)}`,
+            { method: "DELETE" }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudo eliminar el proyecto.");
+        }
+
+        if (uploadedFilename === project.filename) {
+            resetAnalysis();
+            selectedFile = null;
+            fileInfo.classList.add("hidden");
+            previewWorkspace.classList.add("hidden");
+            previewPlaceholder.classList.remove("hidden");
+            videoPreview.removeAttribute("src");
+            verticalBackground.removeAttribute("src");
+            verticalForeground.removeAttribute("src");
+            videoPreview.load();
+            uploadButton.textContent = "Cargar video al proyecto";
+        }
+
+        await loadRecentProjects();
+        setStatus(data.message, "success");
+    } catch (error) {
+        setStatus(error.message || "No se pudo eliminar el proyecto.", "error");
+    }
+});
+
+clearProjectsButton.addEventListener("click", async () => {
+    if (!recentProjects.length) {
+        return;
+    }
+
+    if (!window.confirm(
+        "¿Eliminar TODOS los proyectos recientes, videos cargados y clips generados? Esta acción no se puede deshacer."
+    )) {
+        return;
+    }
+
+    try {
+        const response = await fetch("/projects", { method: "DELETE" });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudieron limpiar los proyectos.");
+        }
+
+        resetAnalysis();
+        selectedFile = null;
+        fileInfo.classList.add("hidden");
+        previewWorkspace.classList.add("hidden");
+        previewPlaceholder.classList.remove("hidden");
+        videoPreview.removeAttribute("src");
+        verticalBackground.removeAttribute("src");
+        verticalForeground.removeAttribute("src");
+        videoPreview.load();
+        uploadButton.textContent = "Cargar video al proyecto";
+
+        await loadRecentProjects();
+        setStatus(data.message, "success");
+    } catch (error) {
+        setStatus(error.message || "No se pudieron limpiar los proyectos.", "error");
+    }
+});
 
 themeToggle.addEventListener("click", () => {
     const currentTheme = document.documentElement.dataset.theme || "dark";
@@ -1109,6 +1254,7 @@ uploadForm.addEventListener("submit", async (event) => {
 
         uploadedFilename = data.filename;
         analyzeButton.classList.remove("hidden");
+        await loadRecentProjects(data.project_id);
 
         const toolsReady = data.ffprobe_available && data.ffmpeg_available;
         const toolText = toolsReady
@@ -1164,6 +1310,7 @@ analyzeButton.addEventListener("click", async () => {
         estimatedClips.textContent = String(data.total_segments);
         analysisSummary.textContent = `${data.total_segments} cortes calculados con FFprobe`;
         segmentsPanel.classList.remove("hidden");
+        loadRecentProjects();
 
         ffmpegReady = Boolean(data.ffmpeg_available);
         updateSelectedCount();
@@ -1319,6 +1466,8 @@ generateButton.addEventListener("click", async () => {
 });
 
 
+renderPresetOptions("builtin:Reel AnderCode");
+loadRecentProjects();
 updateThemeControl();
 setupWorkflowObserver();
 updateVerticalPreviewStyle();

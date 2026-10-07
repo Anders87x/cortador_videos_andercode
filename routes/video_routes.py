@@ -11,6 +11,15 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+from services.project_service import (
+    clear_projects,
+    delete_project,
+    get_project,
+    list_projects,
+    project_id_from_filename,
+    register_project,
+    update_project,
+)
 from services.video_service import (
     VideoServiceError,
     analyze_uploaded_video,
@@ -24,6 +33,18 @@ video_bp = Blueprint("video", __name__)
 
 def service_error_response(error):
     return jsonify(error.to_dict()), error.status_code
+
+
+def project_with_url(project):
+    data = dict(project)
+
+    if data.get("available") and data.get("filename"):
+        data["url"] = url_for(
+            "video.uploaded_video",
+            filename=data["filename"],
+        )
+
+    return data
 
 
 @video_bp.get("/")
@@ -44,6 +65,14 @@ def upload_video():
     except VideoServiceError as error:
         return service_error_response(error)
 
+    project = register_project(
+        current_app.config["PROJECTS_FILE"],
+        data["filename"],
+        data["original_name"],
+        data["size"],
+    )
+
+    data["project_id"] = project["id"]
     data["url"] = url_for(
         "video.uploaded_video",
         filename=data["filename"],
@@ -55,16 +84,27 @@ def upload_video():
 @video_bp.post("/analyze")
 def analyze_video():
     payload = request.get_json(silent=True) or {}
+    filename = payload.get("filename", "")
 
     try:
         data = analyze_uploaded_video(
-            payload.get("filename", ""),
+            filename,
             payload.get("intro_seconds", 5),
             payload.get("clip_seconds", 30),
             current_app.config["UPLOAD_FOLDER"],
         )
     except VideoServiceError as error:
         return service_error_response(error)
+
+    if filename:
+        project_id = project_id_from_filename(filename)
+        update_project(
+            current_app.config["PROJECTS_FILE"],
+            project_id,
+            duration=data["metadata"].get("duration"),
+            intro_seconds=data["intro_seconds"],
+            clip_seconds=data["clip_seconds"],
+        )
 
     return jsonify(data)
 
@@ -82,6 +122,20 @@ def generate_clip():
     except VideoServiceError as error:
         return service_error_response(error)
 
+    project_id = data["project_name"]
+
+    update_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+        output_format=payload.get("output_format", "original"),
+        vertical_scale=payload.get("vertical_scale", 100),
+        vertical_position=payload.get("vertical_position", "center"),
+        blur_strength=payload.get("blur_strength", 25),
+        branding_enabled=payload.get("branding_enabled") is True,
+        branding_title=str(payload.get("branding_title") or "").strip(),
+        branding_handle=str(payload.get("branding_handle") or "").strip(),
+    )
+
     data["url"] = url_for(
         "video.generated_clip",
         project=data.pop("project_name"),
@@ -90,6 +144,74 @@ def generate_clip():
     )
 
     return jsonify(data)
+
+
+@video_bp.get("/projects")
+def projects_index():
+    projects = list_projects(
+        current_app.config["PROJECTS_FILE"],
+        current_app.config["UPLOAD_FOLDER"],
+    )
+
+    return jsonify({
+        "projects": [project_with_url(project) for project in projects],
+    })
+
+
+@video_bp.get("/projects/<project_id>")
+def project_detail(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    filename = project.get("filename", "")
+    project["available"] = bool(
+        filename
+        and (
+            Path(current_app.config["UPLOAD_FOLDER"]) / filename
+        ).exists()
+    )
+
+    return jsonify(project_with_url(project))
+
+
+@video_bp.delete("/projects/<project_id>")
+def project_delete(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    deleted = delete_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+        current_app.config["UPLOAD_FOLDER"],
+        current_app.config["OUTPUT_FOLDER"],
+    )
+
+    if not deleted:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    return jsonify({"message": "Proyecto y archivos eliminados correctamente."})
+
+
+@video_bp.delete("/projects")
+def projects_clear():
+    deleted = clear_projects(
+        current_app.config["PROJECTS_FILE"],
+        current_app.config["UPLOAD_FOLDER"],
+        current_app.config["OUTPUT_FOLDER"],
+    )
+
+    return jsonify({
+        "message": f"Se eliminaron {deleted} proyectos y sus archivos locales.",
+        "deleted": deleted,
+    })
 
 
 @video_bp.get("/uploads/<path:filename>")

@@ -24,10 +24,23 @@ const segmentsCount = document.getElementById("segmentsCount");
 const segmentsList = document.getElementById("segmentsList");
 const selectAllButton = document.getElementById("selectAllButton");
 
+const selectedCount = document.getElementById("selectedCount");
+const generateButton = document.getElementById("generateButton");
+const generationProgress = document.getElementById("generationProgress");
+const progressTitle = document.getElementById("progressTitle");
+const progressPercent = document.getElementById("progressPercent");
+const progressBar = document.getElementById("progressBar");
+const progressDetail = document.getElementById("progressDetail");
+const generatedResults = document.getElementById("generatedResults");
+const generatedList = document.getElementById("generatedList");
+const outputFolder = document.getElementById("outputFolder");
+
 let selectedFile = null;
 let objectUrl = null;
 let uploadedFilename = null;
 let activePreviewEnd = null;
+let currentSegments = [];
+let generationInProgress = false;
 
 function formatBytes(bytes) {
     if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -44,27 +57,25 @@ function formatBytes(bytes) {
     return `${value.toFixed(index >= 2 ? 2 : 0)} ${units[index]}`;
 }
 
-function formatDuration(seconds, includeMillis = false) {
+function formatDuration(seconds) {
     if (!Number.isFinite(Number(seconds))) {
         return "—";
     }
 
-    const numeric = Math.max(0, Number(seconds));
-    const total = Math.floor(numeric);
+    const total = Math.max(0, Math.floor(Number(seconds)));
     const hours = Math.floor(total / 3600);
     const minutes = Math.floor((total % 3600) / 60);
     const secs = total % 60;
 
-    const base = hours > 0
-        ? [hours, minutes, secs].map((value) => String(value).padStart(2, "0")).join(":")
-        : [minutes, secs].map((value) => String(value).padStart(2, "0")).join(":");
-
-    if (!includeMillis) {
-        return base;
+    if (hours > 0) {
+        return [hours, minutes, secs]
+            .map((value) => String(value).padStart(2, "0"))
+            .join(":");
     }
 
-    const millis = Math.round((numeric - total) * 1000);
-    return millis > 0 ? `${base}.${String(millis).padStart(3, "0")}` : base;
+    return [minutes, secs]
+        .map((value) => String(value).padStart(2, "0"))
+        .join(":");
 }
 
 function recalculateClips() {
@@ -101,14 +112,29 @@ function isSupportedVideo(file) {
     return file.type.startsWith("video/") || allowedExtensions.includes(extension);
 }
 
+function resetGeneration() {
+    generationProgress.classList.add("hidden");
+    generatedResults.classList.add("hidden");
+    generatedList.innerHTML = "";
+    outputFolder.textContent = "";
+    progressBar.style.width = "0%";
+    progressPercent.textContent = "0%";
+    progressTitle.textContent = "Preparando...";
+    progressDetail.textContent = "Esperando generación.";
+}
+
 function resetAnalysis() {
     uploadedFilename = null;
+    currentSegments = [];
     analyzeButton.classList.add("hidden");
     segmentsPanel.classList.add("hidden");
     metadataGrid.innerHTML = "";
     segmentsList.innerHTML = "";
     analysisSummary.textContent = "Esperando análisis";
     activePreviewEnd = null;
+    selectedCount.textContent = "0 clips seleccionados";
+    generateButton.disabled = true;
+    resetGeneration();
 }
 
 function selectFile(file) {
@@ -142,7 +168,7 @@ function selectFile(file) {
 
 function renderMetadata(metadata) {
     const items = [
-        ["Duración", formatDuration(metadata.duration, true)],
+        ["Duración", formatDuration(metadata.duration)],
         ["Resolución", metadata.width && metadata.height ? `${metadata.width} × ${metadata.height}` : "—"],
         ["Video", metadata.video_codec ? metadata.video_codec.toUpperCase() : "—"],
         ["FPS", metadata.fps || "—"],
@@ -157,7 +183,19 @@ function renderMetadata(metadata) {
     `).join("");
 }
 
+function updateSelectedCount() {
+    const checkboxes = [...document.querySelectorAll(".segment-checkbox")];
+    const checked = checkboxes.filter((checkbox) => checkbox.checked);
+
+    selectedCount.textContent = `${checked.length} ${checked.length === 1 ? "clip seleccionado" : "clips seleccionados"}`;
+    generateButton.disabled = generationInProgress || checked.length === 0;
+
+    const allChecked = checkboxes.length > 0 && checked.length === checkboxes.length;
+    selectAllButton.textContent = allChecked ? "Deseleccionar todos" : "Seleccionar todos";
+}
+
 function renderSegments(segments) {
+    currentSegments = segments;
     segmentsCount.textContent = `${segments.length} ${segments.length === 1 ? "clip" : "clips"}`;
 
     if (!segments.length) {
@@ -166,23 +204,24 @@ function renderSegments(segments) {
                 No hay duración útil después de eliminar la intro.
             </div>
         `;
+        updateSelectedCount();
         return;
     }
 
     segmentsList.innerHTML = segments.map((segment) => `
-        <article class="segment-card">
+        <article class="segment-card" data-segment-index="${segment.index}">
             <label class="segment-check">
                 <input type="checkbox" class="segment-checkbox" data-index="${segment.index}" checked>
                 <span>Clip ${String(segment.index).padStart(2, "0")}</span>
             </label>
 
             <div class="segment-time">
-                <strong>${formatDuration(segment.start, true)}</strong>
+                <strong>${formatDuration(segment.start)}</strong>
                 <span>→</span>
-                <strong>${formatDuration(segment.end, true)}</strong>
+                <strong>${formatDuration(segment.end)}</strong>
             </div>
 
-            <span class="segment-duration">${formatDuration(segment.duration, true)}</span>
+            <span class="segment-duration">${formatDuration(segment.duration)}</span>
 
             <button
                 class="preview-segment-button"
@@ -194,6 +233,10 @@ function renderSegments(segments) {
             </button>
         </article>
     `).join("");
+
+    document.querySelectorAll(".segment-checkbox").forEach((checkbox) => {
+        checkbox.addEventListener("change", updateSelectedCount);
+    });
 
     document.querySelectorAll(".preview-segment-button").forEach((button) => {
         button.addEventListener("click", async () => {
@@ -211,6 +254,52 @@ function renderSegments(segments) {
             }
         });
     });
+
+    updateSelectedCount();
+}
+
+function setGenerationControlsDisabled(disabled) {
+    generationInProgress = disabled;
+
+    document.querySelectorAll(".segment-checkbox").forEach((checkbox) => {
+        checkbox.disabled = disabled;
+    });
+
+    document.querySelectorAll(".preview-segment-button").forEach((button) => {
+        button.disabled = disabled;
+    });
+
+    selectAllButton.disabled = disabled;
+    introSeconds.disabled = disabled;
+    clipSeconds.disabled = disabled;
+    videoInput.disabled = disabled;
+    uploadButton.disabled = disabled;
+    analyzeButton.disabled = disabled;
+
+    updateSelectedCount();
+}
+
+function renderGeneratedClip(data) {
+    const item = document.createElement("div");
+    item.className = "generated-item";
+
+    const info = document.createElement("div");
+    const name = document.createElement("strong");
+    const meta = document.createElement("span");
+
+    name.textContent = data.filename;
+    meta.textContent = `${formatDuration(data.duration)} · ${formatBytes(data.size)}`;
+
+    info.append(name, meta);
+
+    const link = document.createElement("a");
+    link.href = data.url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "▶ Abrir clip";
+
+    item.append(info, link);
+    generatedList.appendChild(item);
 }
 
 videoInput.addEventListener("change", () => {
@@ -257,6 +346,8 @@ introSeconds.addEventListener("input", () => {
         segmentsPanel.classList.add("hidden");
         analyzeButton.classList.remove("hidden");
         analysisSummary.textContent = "La configuración cambió. Vuelve a analizar.";
+        currentSegments = [];
+        resetGeneration();
     }
 });
 
@@ -267,13 +358,20 @@ clipSeconds.addEventListener("input", () => {
         segmentsPanel.classList.add("hidden");
         analyzeButton.classList.remove("hidden");
         analysisSummary.textContent = "La configuración cambió. Vuelve a analizar.";
+        currentSegments = [];
+        resetGeneration();
     }
 });
 
 selectAllButton.addEventListener("click", () => {
-    document.querySelectorAll(".segment-checkbox").forEach((checkbox) => {
-        checkbox.checked = true;
+    const checkboxes = [...document.querySelectorAll(".segment-checkbox")];
+    const allChecked = checkboxes.length > 0 && checkboxes.every((checkbox) => checkbox.checked);
+
+    checkboxes.forEach((checkbox) => {
+        checkbox.checked = !allChecked;
     });
+
+    updateSelectedCount();
 });
 
 uploadForm.addEventListener("submit", async (event) => {
@@ -306,13 +404,14 @@ uploadForm.addEventListener("submit", async (event) => {
         uploadedFilename = data.filename;
         analyzeButton.classList.remove("hidden");
 
-        const ffprobeText = data.ffprobe_available
-            ? " FFprobe está disponible."
-            : " FFprobe aún no está disponible en el PATH.";
+        const toolsReady = data.ffprobe_available && data.ffmpeg_available;
+        const toolText = toolsReady
+            ? " FFprobe y FFmpeg están disponibles."
+            : " FFmpeg/FFprobe no están completamente disponibles en el PATH.";
 
         setStatus(
-            `Video cargado correctamente como ${data.filename}.${ffprobeText}`,
-            data.ffprobe_available ? "success" : "error"
+            `Video cargado correctamente como ${data.filename}.${toolText}`,
+            toolsReady ? "success" : "error"
         );
     } catch (error) {
         setStatus(error.message || "Ocurrió un error al cargar el video.", "error");
@@ -331,6 +430,7 @@ analyzeButton.addEventListener("click", async () => {
     analyzeButton.disabled = true;
     analyzeButton.textContent = "Analizando con FFprobe...";
     setStatus("Leyendo metadatos y preparando el plan de cortes...");
+    resetGeneration();
 
     try {
         const response = await fetch("/analyze", {
@@ -359,7 +459,16 @@ analyzeButton.addEventListener("click", async () => {
         analysisSummary.textContent = `${data.total_segments} cortes calculados con FFprobe`;
         segmentsPanel.classList.remove("hidden");
 
-        setStatus("Análisis completado. Revisa los fragmentos antes de cortar.", "success");
+        if (!data.ffmpeg_available) {
+            generateButton.disabled = true;
+            setStatus(
+                "Análisis completado, pero FFmpeg no está disponible para generar clips.",
+                "error"
+            );
+        } else {
+            setStatus("Análisis completado. Revisa y selecciona los clips que quieras generar.", "success");
+        }
+
         segmentsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
         setStatus(error.message || "Ocurrió un error al analizar el video.", "error");
@@ -367,4 +476,122 @@ analyzeButton.addEventListener("click", async () => {
         analyzeButton.disabled = false;
         analyzeButton.textContent = "Analizar cortes con FFprobe";
     }
+});
+
+generateButton.addEventListener("click", async () => {
+    if (!uploadedFilename || !currentSegments.length || generationInProgress) {
+        return;
+    }
+
+    const selectedIndexes = [...document.querySelectorAll(".segment-checkbox:checked")]
+        .map((checkbox) => Number(checkbox.dataset.index));
+
+    const selectedSegments = currentSegments.filter((segment) =>
+        selectedIndexes.includes(segment.index)
+    );
+
+    if (!selectedSegments.length) {
+        setStatus("Selecciona al menos un clip para generar.", "error");
+        return;
+    }
+
+    resetGeneration();
+    generationProgress.classList.remove("hidden");
+    generatedResults.classList.remove("hidden");
+    setGenerationControlsDisabled(true);
+
+    generateButton.textContent = "Generando clips...";
+    setStatus(
+        `Generando ${selectedSegments.length} ${selectedSegments.length === 1 ? "clip" : "clips"} con FFmpeg...`
+    );
+
+    let completed = 0;
+    let failed = 0;
+
+    for (let position = 0; position < selectedSegments.length; position += 1) {
+        const segment = selectedSegments[position];
+        const card = document.querySelector(`[data-segment-index="${segment.index}"]`);
+
+        progressTitle.textContent = `Generando clip ${String(segment.index).padStart(2, "0")}`;
+        progressDetail.textContent =
+            `${formatDuration(segment.start)} → ${formatDuration(segment.end)}`;
+
+        if (card) {
+            card.classList.remove("generated", "failed");
+            card.classList.add("generating");
+        }
+
+        try {
+            const response = await fetch("/generate-clip", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    filename: uploadedFilename,
+                    index: segment.index,
+                    start: segment.start,
+                    end: segment.end,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || `No se pudo generar el clip ${segment.index}.`);
+            }
+
+            completed += 1;
+
+            if (card) {
+                card.classList.remove("generating");
+                card.classList.add("generated");
+            }
+
+            renderGeneratedClip(data);
+
+            if (!outputFolder.textContent) {
+                outputFolder.textContent = data.output_folder;
+            }
+        } catch (error) {
+            failed += 1;
+
+            if (card) {
+                card.classList.remove("generating");
+                card.classList.add("failed");
+            }
+
+            const errorItem = document.createElement("div");
+            errorItem.className = "generated-item generated-error";
+            errorItem.textContent =
+                `Clip ${String(segment.index).padStart(2, "0")}: ${error.message}`;
+            generatedList.appendChild(errorItem);
+        }
+
+        const processed = position + 1;
+        const percent = Math.round((processed / selectedSegments.length) * 100);
+
+        progressBar.style.width = `${percent}%`;
+        progressPercent.textContent = `${percent}%`;
+        progressDetail.textContent =
+            `${processed} de ${selectedSegments.length} clips procesados`;
+    }
+
+    progressTitle.textContent = failed
+        ? "Generación finalizada con observaciones"
+        : "Generación completada";
+    progressDetail.textContent =
+        `${completed} correctos · ${failed} con error`;
+
+    generateButton.textContent = "Generar clips seleccionados";
+    setGenerationControlsDisabled(false);
+
+    setStatus(
+        failed
+            ? `Proceso terminado: ${completed} clips generados y ${failed} con error.`
+            : `Listo. Se generaron ${completed} clips dentro de outputs/.`,
+        failed ? "error" : "success"
+    );
+
+    generatedResults.scrollIntoView({ behavior: "smooth", block: "start" });
 });

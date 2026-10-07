@@ -147,7 +147,16 @@ def time_for_filename(seconds):
     return f"{minutes:02d}-{secs:02d}"
 
 
-def build_ffmpeg_command(video_path, output_path, start, clip_duration, output_format):
+def build_ffmpeg_command(
+    video_path,
+    output_path,
+    start,
+    clip_duration,
+    output_format,
+    vertical_scale=100,
+    vertical_position="center",
+    blur_strength=25,
+):
     base = [
         "ffmpeg",
         "-y",
@@ -160,12 +169,27 @@ def build_ffmpeg_command(video_path, output_path, start, clip_duration, output_f
     ]
 
     if output_format == "vertical":
+        target_width = max(2, int(round(1080 * vertical_scale / 100)))
+        target_height = max(2, int(round(1920 * vertical_scale / 100)))
+
+        if target_width % 2:
+            target_width -= 1
+
+        if target_height % 2:
+            target_height -= 1
+
+        y_expression = {
+            "top": "max(0,min(H-h,160))",
+            "center": "(H-h)/2",
+            "bottom": "max(0,H-h-220)",
+        }[vertical_position]
+
         filter_complex = (
             "[0:v]split=2[bg][fg];"
             "[bg]scale=1080:1920:force_original_aspect_ratio=increase,"
-            "crop=1080:1920,boxblur=25:2[bgv];"
-            "[fg]scale=1080:1920:force_original_aspect_ratio=decrease[fgv];"
-            "[bgv][fgv]overlay=(W-w)/2:(H-h)/2,format=yuv420p[vout]"
+            f"crop=1080:1920,boxblur={blur_strength}:2[bgv];"
+            f"[fg]scale={target_width}:{target_height}:force_original_aspect_ratio=decrease[fgv];"
+            f"[bgv][fgv]overlay=(W-w)/2:{y_expression},format=yuv420p[vout]"
         )
 
         return base + [
@@ -317,9 +341,27 @@ def generate_clip():
     start = payload.get("start")
     end = payload.get("end")
     output_format = payload.get("output_format", "original")
+    vertical_scale = payload.get("vertical_scale", 100)
+    vertical_position = payload.get("vertical_position", "center")
+    blur_strength = payload.get("blur_strength", 25)
 
     if output_format not in OUTPUT_FORMATS:
         return jsonify({"message": "El formato de salida no es válido."}), 400
+
+    try:
+        vertical_scale = int(vertical_scale)
+        blur_strength = int(blur_strength)
+    except (TypeError, ValueError):
+        return jsonify({"message": "La personalización vertical no es válida."}), 400
+
+    if not 70 <= vertical_scale <= 100:
+        return jsonify({"message": "El tamaño vertical debe estar entre 70% y 100%."}), 400
+
+    if vertical_position not in {"top", "center", "bottom"}:
+        return jsonify({"message": "La posición vertical no es válida."}), 400
+
+    if not 5 <= blur_strength <= 40:
+        return jsonify({"message": "El desenfoque debe estar entre 5 y 40."}), 400
 
     safe_filename, video_path = safe_uploaded_video(filename)
 
@@ -376,6 +418,9 @@ def generate_clip():
         start,
         clip_duration,
         output_format,
+        vertical_scale,
+        vertical_position,
+        blur_strength,
     )
 
     try:
@@ -407,6 +452,9 @@ def generate_clip():
         "duration": round(clip_duration, 3),
         "output_format": output_format,
         "resolution": "1080x1920" if output_format == "vertical" else f"{metadata.get('width')}x{metadata.get('height')}",
+        "vertical_scale": vertical_scale if output_format == "vertical" else None,
+        "vertical_position": vertical_position if output_format == "vertical" else None,
+        "blur_strength": blur_strength if output_format == "vertical" else None,
         "output_folder": str(project_output.resolve()),
         "url": url_for(
             "generated_clip",

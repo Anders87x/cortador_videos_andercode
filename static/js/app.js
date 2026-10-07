@@ -53,6 +53,15 @@ const contentScaleValue = document.getElementById("contentScaleValue");
 const blurStrength = document.getElementById("blurStrength");
 const blurStrengthValue = document.getElementById("blurStrengthValue");
 const verticalPositionInputs = [...document.querySelectorAll('input[name="verticalPosition"]')];
+const brandingEnabled = document.getElementById("brandingEnabled");
+const brandingSettings = document.getElementById("brandingSettings");
+const brandingTitle = document.getElementById("brandingTitle");
+const brandingHandle = document.getElementById("brandingHandle");
+const showSafeZone = document.getElementById("showSafeZone");
+const brandingPreview = document.getElementById("brandingPreview");
+const brandingTitlePreview = document.getElementById("brandingTitlePreview");
+const brandingHandlePreview = document.getElementById("brandingHandlePreview");
+const subtitleSafeZone = document.getElementById("subtitleSafeZone");
 
 let selectedFile = null;
 let objectUrl = null;
@@ -230,6 +239,23 @@ function updateVerticalPreviewStyle() {
         `blur(${previewBlur}px) brightness(0.62)`;
 }
 
+function updateBrandingPreview() {
+    const enabled = brandingEnabled.checked && outputFormat === "vertical";
+    const title = brandingTitle.value.trim();
+    const handle = brandingHandle.value.trim();
+
+    brandingSettings.classList.toggle("hidden", !brandingEnabled.checked);
+    brandingPreview.classList.toggle("hidden", !enabled);
+
+    brandingTitlePreview.textContent = title;
+    brandingTitlePreview.classList.toggle("hidden", !title);
+
+    brandingHandlePreview.textContent = handle;
+    brandingHandlePreview.classList.toggle("hidden", !handle);
+
+    subtitleSafeZone.classList.toggle("hidden", !showSafeZone.checked);
+}
+
 function updateOutputFormat() {
     outputFormat = getOutputFormat();
     const isVertical = outputFormat === "vertical";
@@ -247,12 +273,14 @@ function updateOutputFormat() {
 
     if (isVertical) {
         updateVerticalPreviewStyle();
+        updateBrandingPreview();
         syncVerticalPreview(true);
 
         if (!videoPreview.paused) {
             playVerticalPreview();
         }
     } else {
+        brandingPreview.classList.add("hidden");
         pauseVerticalPreview();
     }
 
@@ -378,6 +406,10 @@ function selectFile(file) {
     selectedFile = file;
     fileName.textContent = file.name;
     fileSize.textContent = formatBytes(file.size);
+
+    if (!brandingTitle.value.trim()) {
+        brandingTitle.value = file.name.replace(/.[^/.]+$/, "").replace(/[_-]+/g, " ");
+    }
     fileInfo.classList.remove("hidden");
     uploadButton.disabled = false;
     setStatus("");
@@ -397,9 +429,12 @@ function selectFile(file) {
     videoPreview.load();
     verticalBackground.load();
     verticalForeground.load();
+    updateVerticalPreviewStyle();
+    updateBrandingPreview();
     updateThemeControl();
 setupWorkflowObserver();
 updateVerticalPreviewStyle();
+updateBrandingPreview();
 updateOutputFormat();
 }
 
@@ -521,6 +556,10 @@ function setGenerationControlsDisabled(disabled) {
     });
     contentScale.disabled = disabled;
     blurStrength.disabled = disabled;
+    brandingEnabled.disabled = disabled;
+    brandingTitle.disabled = disabled;
+    brandingHandle.disabled = disabled;
+    showSafeZone.disabled = disabled;
 
     updateSelectedCount();
 }
@@ -657,6 +696,26 @@ verticalPositionInputs.forEach((input) => {
         }
     });
 });
+
+brandingEnabled.addEventListener("change", () => {
+    updateBrandingPreview();
+
+    if (currentSegments.length && !generationInProgress) {
+        resetGeneration();
+    }
+});
+
+[brandingTitle, brandingHandle].forEach((input) => {
+    input.addEventListener("input", () => {
+        updateBrandingPreview();
+
+        if (currentSegments.length && !generationInProgress) {
+            resetGeneration();
+        }
+    });
+});
+
+showSafeZone.addEventListener("change", updateBrandingPreview);
 
 introSeconds.addEventListener("input", () => {
     recalculateClips();
@@ -829,7 +888,7 @@ generateButton.addEventListener("click", async () => {
 
     generateButton.textContent = "Generando clips...";
     const formatLabel = outputFormat === "vertical"
-        ? `Reel 9:16 · ${contentScale.value}% · ${getVerticalPosition()}`
+        ? `Reel 9:16 · ${contentScale.value}% · ${getVerticalPosition()}${brandingEnabled.checked ? " · branding" : ""}`
         : "formato original";
 
     setStatus(
@@ -869,6 +928,9 @@ generateButton.addEventListener("click", async () => {
                     vertical_scale: Number(contentScale.value) || 100,
                     vertical_position: getVerticalPosition(),
                     blur_strength: Number(blurStrength.value) || 25,
+                    branding_enabled: brandingEnabled.checked,
+                    branding_title: brandingTitle.value.trim(),
+                    branding_handle: brandingHandle.value.trim(),
                 }),
             });
 

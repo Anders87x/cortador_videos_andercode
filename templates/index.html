@@ -39,7 +39,7 @@
                     Local
                 </span>
 
-                <span class="phase-badge">Fase 7 · Branding</span>
+                <span class="phase-badge">Fase 8 · Productividad</span>
 
                 <button
                     id="themeToggle"
@@ -98,6 +98,64 @@
                 <strong>Cortes</strong>
             </a>
         </nav>
+
+        <section class="productivity-bar" aria-label="Herramientas rápidas">
+            <div class="productivity-group">
+                <div class="productivity-heading">
+                    <span class="productivity-icon">⚡</span>
+                    <div>
+                        <strong>Preset rápido</strong>
+                        <small>Reutiliza tu configuración favorita.</small>
+                    </div>
+                </div>
+
+                <div class="productivity-controls">
+                    <select id="presetSelect" class="compact-select" aria-label="Seleccionar preset"></select>
+
+                    <button id="applyPresetButton" class="compact-button primary-compact" type="button">
+                        Aplicar
+                    </button>
+
+                    <button id="savePresetButton" class="compact-button" type="button">
+                        Guardar actual
+                    </button>
+
+                    <button id="deletePresetButton" class="compact-icon-button" type="button" title="Eliminar preset" aria-label="Eliminar preset">
+                        ×
+                    </button>
+                </div>
+            </div>
+
+            <div class="productivity-separator"></div>
+
+            <div class="productivity-group">
+                <div class="productivity-heading">
+                    <span class="productivity-icon">↻</span>
+                    <div>
+                        <strong>Proyecto reciente</strong>
+                        <small>Retoma un video sin volver a subirlo.</small>
+                    </div>
+                </div>
+
+                <div class="productivity-controls">
+                    <select id="recentProjectSelect" class="compact-select" aria-label="Seleccionar proyecto reciente">
+                        <option value="">Sin proyectos recientes</option>
+                    </select>
+
+                    <button id="openProjectButton" class="compact-button primary-compact" type="button" disabled>
+                        Abrir
+                    </button>
+
+                    <button id="deleteProjectButton" class="compact-icon-button" type="button" title="Eliminar proyecto" aria-label="Eliminar proyecto" disabled>
+                        🗑
+                    </button>
+
+                    <button id="clearProjectsButton" class="compact-button danger-compact" type="button" disabled>
+                        Limpiar todo
+                    </button>
+                </div>
+            </div>
+        </section>
 
         <section class="workspace">
             <div id="uploadSection" class="panel workflow-section">

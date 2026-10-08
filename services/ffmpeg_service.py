@@ -221,15 +221,82 @@ def escape_filter_path(path):
     )
 
 
+def balance_branding_title(text, max_chars=24, max_lines=3):
+    clean_text = " ".join(str(text or "").split())
+
+    if not clean_text:
+        return []
+
+    words = clean_text.split(" ")
+    total_chars = len(clean_text)
+    line_count = max(
+        1,
+        min(
+            max_lines,
+            len(words),
+            (total_chars + max_chars - 1) // max_chars,
+        ),
+    )
+
+    if line_count == 1:
+        return [clean_text]
+
+    target = total_chars / line_count
+    best_lines = None
+    best_score = None
+
+    def evaluate(lines):
+        nonlocal best_lines, best_score
+
+        lengths = [len(line) for line in lines]
+        overflow = sum(
+            max(0, length - max_chars) ** 2 * 100
+            for length in lengths
+        )
+        balance = sum(
+            (length - target) ** 2
+            for length in lengths
+        )
+        spread = (max(lengths) - min(lengths)) ** 2
+        score = overflow + balance + spread
+
+        if best_score is None or score < best_score:
+            best_score = score
+            best_lines = lines
+
+    def search(start_index, remaining_lines, current_lines):
+        if remaining_lines == 1:
+            final_line = " ".join(words[start_index:])
+
+            if final_line:
+                evaluate(current_lines + [final_line])
+
+            return
+
+        max_end = len(words) - remaining_lines + 1
+
+        for end_index in range(start_index + 1, max_end + 1):
+            line = " ".join(words[start_index:end_index])
+            search(
+                end_index,
+                remaining_lines - 1,
+                current_lines + [line],
+            )
+
+    search(0, line_count, [])
+
+    return best_lines or [clean_text]
+
+
 def branding_font_size(text, large=True):
     length = len(text)
 
     if large:
-        if length <= 32:
+        if length <= 18:
             return 52
-        if length <= 50:
-            return 44
-        return 36
+        if length <= 24:
+            return 48
+        return 44
 
     if length <= 16:
         return 38
@@ -241,7 +308,6 @@ def branding_font_size(text, large=True):
         return 28
 
     return 24
-
 
 def _safe_fps(value):
     try:
@@ -275,15 +341,10 @@ def _build_branding_filters(
     branding_title,
     branding_handle,
 ):
-    branding_items = []
+    if not branding_enabled:
+        return [], input_label
 
-    if branding_enabled and branding_title:
-        branding_items.append(("title", branding_title))
-
-    if branding_enabled and branding_handle:
-        branding_items.append(("handle", branding_handle))
-
-    if not branding_items:
+    if not branding_title and not branding_handle:
         return [], input_label
 
     font_path = find_branding_font()
@@ -297,27 +358,81 @@ def _build_branding_filters(
     current_label = input_label
     filters = []
 
-    for index, (kind, text) in enumerate(branding_items, start=1):
-        next_label = f"brand{index}"
-        escaped_text = escape_drawtext_text(text)
-        is_title = kind == "title"
-        font_size = branding_font_size(text, large=is_title)
-        y_position = "110" if is_title else "h-text_h-110"
-        box_border = 24 if is_title else 18
+    if branding_title:
+        title_lines = balance_branding_title(branding_title)
+        longest_line = max(title_lines, key=len)
+        font_size = branding_font_size(longest_line, large=True)
+        line_height = round(font_size * 1.15)
+        box_width = round(1080 * 0.84)
+        box_top = round(1920 * 0.058)
+        padding_y = 24
+        box_height = (
+            len(title_lines) * line_height
+            + (padding_y * 2)
+        )
+
+        box_label = "brand_title_box"
+        filters.append(
+            (
+                f"[{current_label}]drawbox="
+                f"x=(iw-{box_width})/2:"
+                f"y={box_top}:"
+                f"w={box_width}:"
+                f"h={box_height}:"
+                "color=black@0.56:"
+                "t=fill"
+                f"[{box_label}]"
+            )
+        )
+        current_label = box_label
+
+        for line_index, line in enumerate(title_lines, start=1):
+            next_label = f"brand_title_{line_index}"
+            escaped_line = escape_drawtext_text(line)
+            y_position = (
+                box_top
+                + padding_y
+                + ((line_index - 1) * line_height)
+            )
+
+            filters.append(
+                (
+                    f"[{current_label}]drawtext="
+                    f"fontfile='{escaped_font}':"
+                    f"text='{escaped_line}':"
+                    "expansion=none:"
+                    "fontcolor=white:"
+                    f"fontsize={font_size}:"
+                    "x=(w-text_w)/2:"
+                    f"y={y_position}:"
+                    "borderw=1:"
+                    "bordercolor=black@0.35"
+                    f"[{next_label}]"
+                )
+            )
+            current_label = next_label
+
+    if branding_handle:
+        next_label = "brand_handle"
+        escaped_handle = escape_drawtext_text(branding_handle)
+        font_size = branding_font_size(
+            branding_handle,
+            large=False,
+        )
 
         filters.append(
             (
                 f"[{current_label}]drawtext="
                 f"fontfile='{escaped_font}':"
-                f"text='{escaped_text}':"
+                f"text='{escaped_handle}':"
                 "expansion=none:"
                 "fontcolor=white:"
                 f"fontsize={font_size}:"
                 "x=(w-text_w)/2:"
-                f"y={y_position}:"
+                "y=h-text_h-110:"
                 "box=1:"
                 "boxcolor=black@0.52:"
-                f"boxborderw={box_border}:"
+                "boxborderw=18:"
                 "borderw=1:"
                 "bordercolor=black@0.35"
                 f"[{next_label}]"
@@ -326,7 +441,6 @@ def _build_branding_filters(
         current_label = next_label
 
     return filters, current_label
-
 
 def _build_main_video_filters(
     output_format,

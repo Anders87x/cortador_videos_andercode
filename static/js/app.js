@@ -72,6 +72,20 @@ const brandingTitlePreview = document.getElementById("brandingTitlePreview");
 const brandingHandlePreview = document.getElementById("brandingHandlePreview");
 const subtitleSafeZone = document.getElementById("subtitleSafeZone");
 
+const outroEnabled = document.getElementById("outroEnabled");
+const outroImageInput = document.getElementById("outroImageInput");
+const selectOutroImageButton = document.getElementById("selectOutroImageButton");
+const deleteOutroImageButton = document.getElementById("deleteOutroImageButton");
+const outroEmptyState = document.getElementById("outroEmptyState");
+const outroProjectHint = document.getElementById("outroProjectHint");
+const outroPreviewBox = document.getElementById("outroPreviewBox");
+const outroImagePreview = document.getElementById("outroImagePreview");
+const outroImageName = document.getElementById("outroImageName");
+const outroImageSize = document.getElementById("outroImageSize");
+const outroDuration = document.getElementById("outroDuration");
+const outroFade = document.getElementById("outroFade");
+const outroStatus = document.getElementById("outroStatus");
+
 let selectedFile = null;
 let objectUrl = null;
 let uploadedFilename = null;
@@ -81,6 +95,8 @@ let generationInProgress = false;
 let ffmpegReady = false;
 let outputFormat = "original";
 let recentProjects = [];
+let activeProjectId = null;
+let outroHasImage = false;
 
 const THEME_STORAGE_KEY = "andercode-video-theme";
 const PRESETS_STORAGE_KEY = "andercode-video-presets";
@@ -366,6 +382,7 @@ async function openRecentProject() {
         resetAnalysis();
         selectedFile = null;
         uploadedFilename = project.filename;
+        activeProjectId = project.id;
 
         fileName.textContent = project.original_name || project.filename;
         fileSize.textContent = formatBytes(Number(project.size) || 0);
@@ -376,6 +393,7 @@ async function openRecentProject() {
         analyzeButton.classList.remove("hidden");
 
         applySettings(project);
+        applyOutroProject(project);
         loadPreviewUrl(project.url);
 
         setStatus(
@@ -389,6 +407,222 @@ async function openRecentProject() {
         });
     } catch (error) {
         setStatus(error.message || "No se pudo abrir el proyecto.", "error");
+    }
+}
+
+function setOutroStatus(message, type = "") {
+    outroStatus.textContent = message;
+    outroStatus.className = "outro-status";
+
+    if (type) {
+        outroStatus.classList.add(type);
+    }
+}
+
+function refreshOutroControlsDisabled(forceDisabled = false) {
+    const hasProject = Boolean(activeProjectId);
+    const disabled = forceDisabled || !hasProject;
+
+    selectOutroImageButton.disabled = disabled;
+    outroDuration.disabled = disabled;
+    outroFade.disabled = disabled;
+    deleteOutroImageButton.disabled = disabled || !outroHasImage;
+    outroEnabled.disabled = disabled || !outroHasImage;
+}
+
+function resetOutroProject() {
+    activeProjectId = null;
+    outroHasImage = false;
+    outroEnabled.checked = false;
+    outroDuration.value = 5;
+    outroFade.checked = true;
+    outroImageInput.value = "";
+    outroImagePreview.removeAttribute("src");
+    outroPreviewBox.classList.add("hidden");
+    outroEmptyState.classList.remove("hidden");
+    outroProjectHint.textContent = "Carga primero el video al proyecto.";
+    outroImageName.textContent = "Imagen promocional";
+    outroImageSize.textContent = "—";
+    refreshOutroControlsDisabled();
+    setOutroStatus(
+        "La imagen será silenciosa y específica para este proyecto."
+    );
+}
+
+function applyOutroProject(project = {}) {
+    activeProjectId = project.id || activeProjectId;
+    outroHasImage = Boolean(project.outro_image);
+
+    outroEnabled.checked = Boolean(project.outro_enabled && outroHasImage);
+    outroDuration.value = project.outro_duration ?? 5;
+    outroFade.checked = project.outro_fade !== false;
+
+    if (outroHasImage && project.outro_image_url) {
+        outroImagePreview.src =
+            `${project.outro_image_url}?v=${encodeURIComponent(project.updated_at || Date.now())}`;
+        outroImageName.textContent =
+            project.outro_image_original_name || project.outro_image;
+        outroImageSize.textContent = formatBytes(
+            Number(project.outro_image_size) || 0
+        );
+        outroPreviewBox.classList.remove("hidden");
+        outroEmptyState.classList.add("hidden");
+    } else {
+        outroImagePreview.removeAttribute("src");
+        outroImageName.textContent = "Imagen promocional";
+        outroImageSize.textContent = "—";
+        outroPreviewBox.classList.add("hidden");
+        outroEmptyState.classList.remove("hidden");
+        outroProjectHint.textContent = activeProjectId
+            ? "Selecciona una imagen específica para este proyecto."
+            : "Carga primero el video al proyecto.";
+    }
+
+    refreshOutroControlsDisabled();
+    setOutroStatus(
+        outroHasImage
+            ? "La imagen se aplicará a todos los clips cuando integremos el render del outro."
+            : "PNG, JPG, JPEG o WEBP · máximo 10 MB."
+    );
+}
+
+async function saveOutroSettings() {
+    if (!activeProjectId) {
+        return false;
+    }
+
+    try {
+        const response = await fetch(
+            `/projects/${encodeURIComponent(activeProjectId)}/outro`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    outro_enabled: outroEnabled.checked,
+                    outro_duration: Number(outroDuration.value) || 5,
+                    outro_fade: outroFade.checked,
+                }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.message || "No se pudo guardar la configuración del outro."
+            );
+        }
+
+        applyOutroProject(data);
+        await loadRecentProjects(activeProjectId);
+        setOutroStatus("Configuración del outro guardada.", "success");
+        return true;
+    } catch (error) {
+        setOutroStatus(
+            error.message || "No se pudo guardar la configuración del outro.",
+            "error"
+        );
+
+        if (!outroHasImage) {
+            outroEnabled.checked = false;
+        }
+
+        return false;
+    }
+}
+
+async function uploadOutroImage(file) {
+    if (!activeProjectId || !file) {
+        return;
+    }
+
+    const allowedExtensions = ["png", "jpg", "jpeg", "webp"];
+    const extension = file.name.split(".").pop()?.toLowerCase();
+
+    if (!allowedExtensions.includes(extension)) {
+        setOutroStatus("Usa una imagen PNG, JPG, JPEG o WEBP.", "error");
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        setOutroStatus("La imagen supera el límite de 10 MB.", "error");
+        return;
+    }
+
+    selectOutroImageButton.disabled = true;
+    deleteOutroImageButton.disabled = true;
+    setOutroStatus("Guardando imagen promocional...");
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+        const response = await fetch(
+            `/projects/${encodeURIComponent(activeProjectId)}/outro-image`,
+            {
+                method: "POST",
+                body: formData,
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudo guardar la imagen.");
+        }
+
+        outroImageInput.value = "";
+        applyOutroProject(data);
+        await loadRecentProjects(activeProjectId);
+        setOutroStatus(
+            "Imagen guardada. El outro quedó activado para este proyecto.",
+            "success"
+        );
+    } catch (error) {
+        setOutroStatus(
+            error.message || "No se pudo guardar la imagen promocional.",
+            "error"
+        );
+        refreshOutroControlsDisabled();
+    }
+}
+
+async function removeOutroImage() {
+    if (!activeProjectId || !outroHasImage) {
+        return;
+    }
+
+    if (!window.confirm(
+        "¿Eliminar la imagen promocional de este proyecto?"
+    )) {
+        return;
+    }
+
+    refreshOutroControlsDisabled(true);
+    setOutroStatus("Eliminando imagen promocional...");
+
+    try {
+        const response = await fetch(
+            `/projects/${encodeURIComponent(activeProjectId)}/outro-image`,
+            { method: "DELETE" }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudo eliminar la imagen.");
+        }
+
+        applyOutroProject(data);
+        await loadRecentProjects(activeProjectId);
+        setOutroStatus(data.message, "success");
+    } catch (error) {
+        setOutroStatus(
+            error.message || "No se pudo eliminar la imagen promocional.",
+            "error"
+        );
+        refreshOutroControlsDisabled();
     }
 }
 
@@ -706,6 +940,7 @@ function resetGeneration() {
 
 function resetAnalysis() {
     uploadedFilename = null;
+    resetOutroProject();
     currentSegments = [];
     ffmpegReady = false;
     analyzeButton.classList.add("hidden");
@@ -884,6 +1119,7 @@ function setGenerationControlsDisabled(disabled) {
     brandingTitle.disabled = disabled;
     brandingHandle.disabled = disabled;
     showSafeZone.disabled = disabled;
+    refreshOutroControlsDisabled(disabled);
 
     updateSelectedCount();
 }
@@ -1185,6 +1421,44 @@ brandingEnabled.addEventListener("change", () => {
 
 showSafeZone.addEventListener("change", updateBrandingPreview);
 
+selectOutroImageButton.addEventListener("click", () => {
+    if (!activeProjectId) {
+        setOutroStatus("Carga primero el video al proyecto.", "error");
+        return;
+    }
+
+    outroImageInput.click();
+});
+
+outroImageInput.addEventListener("change", () => {
+    const file = outroImageInput.files[0];
+
+    if (file) {
+        uploadOutroImage(file);
+    }
+});
+
+deleteOutroImageButton.addEventListener("click", removeOutroImage);
+
+outroEnabled.addEventListener("change", saveOutroSettings);
+
+outroDuration.addEventListener("change", () => {
+    const duration = Number(outroDuration.value);
+
+    if (!Number.isInteger(duration) || duration < 2 || duration > 10) {
+        setOutroStatus(
+            "La duración debe estar entre 2 y 10 segundos.",
+            "error"
+        );
+        outroDuration.value = Math.min(10, Math.max(2, Math.round(duration || 5)));
+        return;
+    }
+
+    saveOutroSettings();
+});
+
+outroFade.addEventListener("change", saveOutroSettings);
+
 introSeconds.addEventListener("input", () => {
     recalculateClips();
 
@@ -1253,7 +1527,15 @@ uploadForm.addEventListener("submit", async (event) => {
         }
 
         uploadedFilename = data.filename;
+        activeProjectId = data.project_id;
         analyzeButton.classList.remove("hidden");
+        applyOutroProject({
+            id: data.project_id,
+            outro_enabled: false,
+            outro_image: null,
+            outro_duration: 5,
+            outro_fade: true,
+        });
         await loadRecentProjects(data.project_id);
 
         const toolsReady = data.ffprobe_available && data.ffmpeg_available;
@@ -1467,6 +1749,7 @@ generateButton.addEventListener("click", async () => {
 
 
 renderPresetOptions("builtin:Reel AnderCode");
+resetOutroProject();
 loadRecentProjects();
 updateThemeControl();
 setupWorkflowObserver();

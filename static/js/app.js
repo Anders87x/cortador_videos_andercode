@@ -45,14 +45,19 @@ const deselectAllButton = document.getElementById("deselectAllButton");
 
 const selectedCount = document.getElementById("selectedCount");
 const generateButton = document.getElementById("generateButton");
+const cancelGenerationButton = document.getElementById("cancelGenerationButton");
+const renderEngineSelect = document.getElementById("renderEngineSelect");
+const renderEngineHint = document.getElementById("renderEngineHint");
 const generationProgress = document.getElementById("generationProgress");
 const progressTitle = document.getElementById("progressTitle");
 const progressPercent = document.getElementById("progressPercent");
 const progressBar = document.getElementById("progressBar");
 const progressDetail = document.getElementById("progressDetail");
+const progressTiming = document.getElementById("progressTiming");
 const generatedResults = document.getElementById("generatedResults");
 const generatedList = document.getElementById("generatedList");
 const outputFolder = document.getElementById("outputFolder");
+const openOutputFolderButton = document.getElementById("openOutputFolderButton");
 const generationDescription = document.getElementById("generationDescription");
 const outputFormatSummary = document.getElementById("outputFormatSummary");
 const outputFormatInputs = [...document.querySelectorAll('input[name="outputFormat"]')];
@@ -118,6 +123,12 @@ let recentProjects = [];
 let activeProjectId = null;
 let hookHasImage = false;
 let outroHasImage = false;
+let activeRenderJobId = null;
+let cancelRequested = false;
+let renderStartedAt = 0;
+let renderTimerId = null;
+let processedRenderClips = 0;
+let totalRenderClips = 0;
 
 const THEME_STORAGE_KEY = "andercode-video-theme";
 const PRESETS_STORAGE_KEY = "andercode-video-presets";
@@ -1189,6 +1200,165 @@ function isSupportedVideo(file) {
     return file.type.startsWith("video/") || allowedExtensions.includes(extension);
 }
 
+function createRenderJobId() {
+    if (window.crypto?.randomUUID) {
+        return window.crypto.randomUUID();
+    }
+
+    return `render-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function formatRenderClock(totalSeconds) {
+    const total = Math.max(0, Math.round(totalSeconds));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+
+    if (hours > 0) {
+        return [
+            String(hours),
+            String(minutes).padStart(2, "0"),
+            String(seconds).padStart(2, "0"),
+        ].join(":");
+    }
+
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function updateRenderTiming() {
+    if (!renderStartedAt) {
+        progressTiming.textContent = "";
+        return;
+    }
+
+    const elapsedSeconds = (performance.now() - renderStartedAt) / 1000;
+    let label = `Transcurrido ${formatRenderClock(elapsedSeconds)}`;
+
+    if (processedRenderClips > 0 && totalRenderClips > processedRenderClips) {
+        const average = elapsedSeconds / processedRenderClips;
+        const remaining = average * (totalRenderClips - processedRenderClips);
+        label += ` · Restante aprox. ${formatRenderClock(remaining)}`;
+    }
+
+    progressTiming.textContent = label;
+}
+
+function startRenderTimer(totalClips) {
+    totalRenderClips = totalClips;
+    processedRenderClips = 0;
+    renderStartedAt = performance.now();
+    updateRenderTiming();
+
+    if (renderTimerId) {
+        clearInterval(renderTimerId);
+    }
+
+    renderTimerId = window.setInterval(updateRenderTiming, 1000);
+}
+
+function stopRenderTimer() {
+    if (renderTimerId) {
+        clearInterval(renderTimerId);
+        renderTimerId = null;
+    }
+
+    updateRenderTiming();
+}
+
+async function loadRenderCapabilities() {
+    try {
+        const response = await fetch("/render-capabilities");
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudieron detectar los motores de render.");
+        }
+
+        const gpuOption = renderEngineSelect.querySelector('option[value="gpu"]');
+
+        if (gpuOption) {
+            gpuOption.disabled = !data.nvenc_available;
+            gpuOption.textContent = data.nvenc_available
+                ? "NVIDIA NVENC · GPU"
+                : "NVIDIA NVENC · no disponible";
+        }
+
+        renderEngineHint.textContent = data.nvenc_available
+            ? "Auto usará NVIDIA NVENC y hará fallback a CPU si es necesario."
+            : "NVENC no está disponible; Auto utilizará CPU.";
+    } catch (_error) {
+        renderEngineSelect.value = "cpu";
+        const gpuOption = renderEngineSelect.querySelector('option[value="gpu"]');
+
+        if (gpuOption) {
+            gpuOption.disabled = true;
+        }
+
+        renderEngineHint.textContent = "No se pudo detectar NVENC. Se usará CPU.";
+    }
+}
+
+async function finishRenderJob(jobId) {
+    if (!jobId) {
+        return;
+    }
+
+    try {
+        await fetch(`/render-jobs/${encodeURIComponent(jobId)}/finish`, {
+            method: "POST",
+        });
+    } catch (_error) {
+        // La limpieza del job no debe bloquear la experiencia del usuario.
+    }
+}
+
+async function cancelActiveRender() {
+    if (!activeRenderJobId || !generationInProgress || cancelRequested) {
+        return;
+    }
+
+    cancelRequested = true;
+    cancelGenerationButton.disabled = true;
+    cancelGenerationButton.textContent = "Cancelando...";
+    progressTitle.textContent = "Cancelando procesamiento...";
+    setStatus("Cancelando el proceso FFmpeg actual...");
+
+    try {
+        await fetch(
+            `/render-jobs/${encodeURIComponent(activeRenderJobId)}/cancel`,
+            { method: "POST" }
+        );
+    } catch (_error) {
+        setStatus(
+            "Se solicitó detener la cola. El proceso actual puede tardar unos segundos en finalizar.",
+            "error"
+        );
+    }
+}
+
+async function openCurrentOutputFolder() {
+    if (!activeProjectId) {
+        setStatus("No hay un proyecto activo para abrir.", "error");
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/projects/${encodeURIComponent(activeProjectId)}/open-output`,
+            { method: "POST" }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudo abrir la carpeta de resultados.");
+        }
+
+        setStatus(data.message, "success");
+    } catch (error) {
+        setStatus(error.message || "No se pudo abrir la carpeta de resultados.", "error");
+    }
+}
+
 function resetGeneration() {
     generationProgress.classList.add("hidden");
     generatedResults.classList.add("hidden");
@@ -1198,6 +1368,8 @@ function resetGeneration() {
     progressPercent.textContent = "0%";
     progressTitle.textContent = "Preparando...";
     progressDetail.textContent = "Esperando generación.";
+    progressTiming.textContent = "";
+    openOutputFolderButton.disabled = true;
 }
 
 function resetAnalysis() {
@@ -1383,6 +1555,7 @@ function setGenerationControlsDisabled(disabled) {
     brandingTitle.disabled = disabled;
     brandingHandle.disabled = disabled;
     showSafeZone.disabled = disabled;
+    renderEngineSelect.disabled = disabled;
     refreshHookControlsDisabled(disabled);
     refreshOutroControlsDisabled(disabled);
 
@@ -1418,8 +1591,9 @@ function renderGeneratedClip(data) {
         formatBytes(data.size),
         formatLabel,
         data.resolution || "—",
+        data.encoder_used || "",
         ...promoLabels,
-    ].join(" · ");
+    ].filter(Boolean).join(" · ");
 
     info.append(name, meta);
 
@@ -1947,6 +2121,9 @@ analyzeButton.addEventListener("click", async () => {
     }
 });
 
+cancelGenerationButton.addEventListener("click", cancelActiveRender);
+openOutputFolderButton.addEventListener("click", openCurrentOutputFolder);
+
 generateButton.addEventListener("click", async () => {
     if (!uploadedFilename || !currentSegments.length || generationInProgress) {
         return;
@@ -1969,138 +2146,206 @@ generateButton.addEventListener("click", async () => {
     generatedResults.classList.remove("hidden");
     setGenerationControlsDisabled(true);
 
+    activeRenderJobId = createRenderJobId();
+    cancelRequested = false;
+    cancelGenerationButton.classList.remove("hidden");
+    cancelGenerationButton.disabled = false;
+    cancelGenerationButton.textContent = "Cancelar procesamiento";
+    startRenderTimer(selectedSegments.length);
+
     generateButton.textContent = "Generando clips...";
+
     const promoSummary = [
         hookEnabled.checked ? `hook ${hookDuration.value}s` : "",
         outroEnabled.checked ? `outro ${outroDuration.value}s` : "",
     ].filter(Boolean).join(" · ");
+
+    const engineLabel = renderEngineSelect.options[
+        renderEngineSelect.selectedIndex
+    ]?.textContent || "Auto";
 
     const formatLabel = outputFormat === "vertical"
         ? `Reel 9:16 · ${contentScale.value}% · ${getVerticalPosition()}${brandingEnabled.checked ? " · branding" : ""}${promoSummary ? ` · ${promoSummary}` : ""}`
         : `formato original${promoSummary ? ` · ${promoSummary}` : ""}`;
 
     setStatus(
-        `Generando ${selectedSegments.length} ${selectedSegments.length === 1 ? "clip" : "clips"} en ${formatLabel} con FFmpeg...`
+        `Generando ${selectedSegments.length} ${selectedSegments.length === 1 ? "clip" : "clips"} en ${formatLabel} · ${engineLabel}...`
     );
 
     let completed = 0;
     let failed = 0;
+    let attempted = 0;
 
-    for (let position = 0; position < selectedSegments.length; position += 1) {
-        const segment = selectedSegments[position];
-        const card = document.querySelector(`[data-segment-index="${segment.index}"]`);
-
-        progressTitle.textContent = outputFormat === "vertical"
-            ? `Generando Reel ${String(segment.index).padStart(2, "0")}`
-            : `Generando clip ${String(segment.index).padStart(2, "0")}`;
-        progressDetail.textContent =
-            `${formatDuration(segment.start)} → ${formatDuration(segment.end)}`;
-
-        if (card) {
-            card.classList.remove("generated", "failed");
-            card.classList.add("generating");
-        }
-
-        try {
-            const response = await fetch("/generate-clip", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    filename: uploadedFilename,
-                    index: segment.index,
-                    start: segment.start,
-                    end: segment.end,
-                    output_format: outputFormat,
-                    vertical_scale: Number(contentScale.value) || 100,
-                    vertical_position: getVerticalPosition(),
-                    blur_strength: Number(blurStrength.value) || 25,
-                    branding_enabled: brandingEnabled.checked,
-                    branding_title: brandingTitle.value.trim(),
-                    branding_handle: brandingHandle.value.trim(),
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                const error = new Error(
-                    data.message || `No se pudo generar el clip ${segment.index}.`
-                );
-                error.detail = data.detail || "";
-                throw error;
+    try {
+        for (let position = 0; position < selectedSegments.length; position += 1) {
+            if (cancelRequested) {
+                break;
             }
 
-            completed += 1;
+            const segment = selectedSegments[position];
+            const card = document.querySelector(
+                `[data-segment-index="${segment.index}"]`
+            );
+
+            progressTitle.textContent = outputFormat === "vertical"
+                ? `Generando Reel ${String(segment.index).padStart(2, "0")}`
+                : `Generando clip ${String(segment.index).padStart(2, "0")}`;
+            progressDetail.textContent =
+                `${formatDuration(segment.start)} → ${formatDuration(segment.end)}`;
 
             if (card) {
-                card.classList.remove("generating");
-                card.classList.add("generated");
+                card.classList.remove("generated", "failed");
+                card.classList.add("generating");
             }
 
-            renderGeneratedClip(data);
+            try {
+                const response = await fetch("/generate-clip", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        filename: uploadedFilename,
+                        index: segment.index,
+                        start: segment.start,
+                        end: segment.end,
+                        output_format: outputFormat,
+                        vertical_scale: Number(contentScale.value) || 100,
+                        vertical_position: getVerticalPosition(),
+                        blur_strength: Number(blurStrength.value) || 25,
+                        branding_enabled: brandingEnabled.checked,
+                        branding_title: brandingTitle.value.trim(),
+                        branding_handle: brandingHandle.value.trim(),
+                        encoder_mode: renderEngineSelect.value,
+                        job_id: activeRenderJobId,
+                    }),
+                });
 
-            if (!outputFolder.textContent) {
-                outputFolder.textContent = data.output_folder;
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const error = new Error(
+                        data.message || `No se pudo generar el clip ${segment.index}.`
+                    );
+                    error.detail = data.detail || "";
+                    error.status = response.status;
+                    throw error;
+                }
+
+                completed += 1;
+                attempted += 1;
+                processedRenderClips = attempted;
+
+                if (card) {
+                    card.classList.remove("generating");
+                    card.classList.add("generated");
+                }
+
+                renderGeneratedClip(data);
+                openOutputFolderButton.disabled = false;
+
+                if (!outputFolder.textContent) {
+                    outputFolder.textContent = data.output_folder;
+                }
+            } catch (error) {
+                const wasCancelled =
+                    cancelRequested ||
+                    error.status === 409 ||
+                    /cancelado/i.test(error.message || "");
+
+                if (card) {
+                    card.classList.remove("generating");
+
+                    if (!wasCancelled) {
+                        card.classList.add("failed");
+                    }
+                }
+
+                if (wasCancelled) {
+                    cancelRequested = true;
+                    break;
+                }
+
+                failed += 1;
+                attempted += 1;
+                processedRenderClips = attempted;
+
+                const errorItem = document.createElement("div");
+                errorItem.className = "generated-item generated-error";
+
+                const errorTitle = document.createElement("div");
+                errorTitle.textContent =
+                    `Clip ${String(segment.index).padStart(2, "0")}: ${error.message}`;
+                errorItem.appendChild(errorTitle);
+
+                if (error.detail) {
+                    const details = document.createElement("details");
+                    details.className = "ffmpeg-error-detail";
+
+                    const summary = document.createElement("summary");
+                    summary.textContent = "Ver detalle técnico de FFmpeg";
+
+                    const pre = document.createElement("pre");
+                    pre.textContent = error.detail;
+
+                    details.append(summary, pre);
+                    errorItem.appendChild(details);
+                }
+
+                generatedList.appendChild(errorItem);
             }
-        } catch (error) {
-            failed += 1;
 
-            if (card) {
-                card.classList.remove("generating");
-                card.classList.add("failed");
-            }
+            const processed = completed + failed;
+            const percent = Math.round(
+                (processed / selectedSegments.length) * 100
+            );
 
-            const errorItem = document.createElement("div");
-            errorItem.className = "generated-item generated-error";
-
-            const errorTitle = document.createElement("div");
-            errorTitle.textContent =
-                `Clip ${String(segment.index).padStart(2, "0")}: ${error.message}`;
-            errorItem.appendChild(errorTitle);
-
-            if (error.detail) {
-                const details = document.createElement("details");
-                details.className = "ffmpeg-error-detail";
-
-                const summary = document.createElement("summary");
-                summary.textContent = "Ver detalle técnico de FFmpeg";
-
-                const pre = document.createElement("pre");
-                pre.textContent = error.detail;
-
-                details.append(summary, pre);
-                errorItem.appendChild(details);
-            }
-
-            generatedList.appendChild(errorItem);
+            progressBar.style.width = `${percent}%`;
+            progressPercent.textContent = `${percent}%`;
+            progressDetail.textContent =
+                `${processed} de ${selectedSegments.length} clips procesados`;
+            updateRenderTiming();
         }
-
-        const processed = position + 1;
-        const percent = Math.round((processed / selectedSegments.length) * 100);
-
-        progressBar.style.width = `${percent}%`;
-        progressPercent.textContent = `${percent}%`;
-        progressDetail.textContent =
-            `${processed} de ${selectedSegments.length} clips procesados`;
+    } finally {
+        stopRenderTimer();
+        await finishRenderJob(activeRenderJobId);
     }
 
-    progressTitle.textContent = failed
-        ? "Generación finalizada con observaciones"
-        : "Generación completada";
-    progressDetail.textContent =
-        `${completed} correctos · ${failed} con error`;
+    const wasCancelled = cancelRequested;
+
+    if (wasCancelled) {
+        progressTitle.textContent = "Generación cancelada";
+        progressDetail.textContent =
+            `${completed} generados · ${failed} con error · cola detenida`;
+    } else {
+        progressTitle.textContent = failed
+            ? "Generación finalizada con observaciones"
+            : "Generación completada";
+        progressDetail.textContent =
+            `${completed} correctos · ${failed} con error`;
+        progressBar.style.width = "100%";
+        progressPercent.textContent = "100%";
+    }
 
     generateButton.textContent = "Generar clips seleccionados";
+    cancelGenerationButton.classList.add("hidden");
+    cancelGenerationButton.disabled = false;
+    cancelGenerationButton.textContent = "Cancelar procesamiento";
+    activeRenderJobId = null;
     setGenerationControlsDisabled(false);
 
-    setStatus(
-        failed
-            ? `Proceso terminado: ${completed} clips generados y ${failed} con error.`
-            : `Listo. Se generaron ${completed} clips en ${formatLabel} dentro de outputs/.`,
-        failed ? "error" : "success"
-    );
+    if (wasCancelled) {
+        setStatus(
+            `Proceso cancelado. Se alcanzaron a generar ${completed} clips.`
+        );
+    } else {
+        setStatus(
+            failed
+                ? `Proceso terminado: ${completed} clips generados y ${failed} con error.`
+                : `Listo. Se generaron ${completed} clips en ${formatLabel} dentro de outputs/.`,
+            failed ? "error" : "success"
+        );
+    }
 
     generatedResults.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -2110,6 +2355,7 @@ renderPresetOptions("builtin:Reel AnderCode");
 resetHookProject();
 resetOutroProject();
 loadRecentProjects();
+loadRenderCapabilities();
 updateThemeControl();
 setupWorkflowObserver();
 updateVerticalPreviewStyle();

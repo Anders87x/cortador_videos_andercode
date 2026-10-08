@@ -938,7 +938,7 @@ function setupWorkflowObserver() {
 
 
 function getOutputFormat() {
-    return outputFormatInputs.find((input) => input.checked)?.value || "original";
+    return outputFormatInputs.find((input) => input.checked)?.value || "vertical";
 }
 
 function syncVerticalPreview(force = false) {

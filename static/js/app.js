@@ -1424,7 +1424,7 @@ function renderGeneratedClip(data) {
     info.append(name, meta);
 
     const link = document.createElement("a");
-    link.href = data.url;
+    link.href = `${data.url}?v=${Date.now()}`;
     link.target = "_blank";
     link.rel = "noopener";
     link.textContent = "▶ Abrir clip";

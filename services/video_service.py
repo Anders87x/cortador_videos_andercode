@@ -127,7 +127,12 @@ def analyze_uploaded_video(
     }
 
 
-def generate_video_clip(payload, upload_folder, output_folder):
+def generate_video_clip(
+    payload,
+    upload_folder,
+    output_folder,
+    promo_config=None,
+):
     filename = payload.get("filename", "")
     clip_index = payload.get("index")
     start = payload.get("start")
@@ -268,6 +273,56 @@ def generate_video_clip(payload, upload_folder, output_folder):
     )
     output_path = project_output / output_name
 
+    promo_config = promo_config or {}
+    hook = promo_config.get("hook")
+    outro = promo_config.get("outro")
+
+    promo_duration = 0.0
+
+    if hook:
+        try:
+            hook_duration = float(hook.get("duration", 0.5))
+        except (TypeError, ValueError):
+            raise VideoServiceError(
+                "La duración del hook no es válida.",
+                400,
+            ) from None
+
+        if not 0.2 <= hook_duration <= 3:
+            raise VideoServiceError(
+                "La duración del hook debe estar entre 0.2 y 3 segundos.",
+                400,
+            )
+
+        hook = {
+            "image_path": Path(hook["image_path"]),
+            "duration": round(hook_duration, 3),
+            "fade": bool(hook.get("fade", True)),
+        }
+        promo_duration += hook["duration"]
+
+    if outro:
+        try:
+            outro_duration = float(outro.get("duration", 5))
+        except (TypeError, ValueError):
+            raise VideoServiceError(
+                "La duración del outro no es válida.",
+                400,
+            ) from None
+
+        if not 2 <= outro_duration <= 10:
+            raise VideoServiceError(
+                "La duración del outro debe estar entre 2 y 10 segundos.",
+                400,
+            )
+
+        outro = {
+            "image_path": Path(outro["image_path"]),
+            "duration": round(outro_duration, 3),
+            "fade": bool(outro.get("fade", True)),
+        }
+        promo_duration += outro["duration"]
+
     try:
         result = render_clip(
             video_path,
@@ -281,6 +336,9 @@ def generate_video_clip(payload, upload_folder, output_folder):
             branding_enabled,
             branding_title,
             branding_handle,
+            metadata,
+            hook,
+            outro,
         )
     except RuntimeError as error:
         raise VideoServiceError(str(error), 503) from error
@@ -303,7 +361,12 @@ def generate_video_clip(payload, upload_folder, output_folder):
         "index": clip_index,
         "filename": output_name,
         "size": output_path.stat().st_size,
-        "duration": round(clip_duration, 3),
+        "duration": round(clip_duration + promo_duration, 3),
+        "content_duration": round(clip_duration, 3),
+        "hook_enabled": hook is not None,
+        "hook_duration": hook["duration"] if hook else 0,
+        "outro_enabled": outro is not None,
+        "outro_duration": outro["duration"] if outro else 0,
         "output_format": output_format,
         "resolution": (
             "1080x1920"

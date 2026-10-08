@@ -314,21 +314,17 @@ def _build_promo_filters(
     fade_chain = _promo_fade_chain(duration, fade_enabled)
 
     filters = [
-        f"[{input_index}:v]setpts=PTS-STARTPTS,split=2[{prefix}bg][{prefix}fg]",
         (
-            f"[{prefix}bg]scale={target_width}:{target_height}:"
-            "force_original_aspect_ratio=increase,"
-            f"crop={target_width}:{target_height},"
-            f"boxblur=22:2[{prefix}bgv]"
-        ),
-        (
-            f"[{prefix}fg]scale={target_width}:{target_height}:"
-            "force_original_aspect_ratio=decrease[{prefix}fgv]"
-        ),
-        (
-            f"[{prefix}bgv][{prefix}fgv]overlay=(W-w)/2:(H-h)/2,"
-            f"setsar=1,fps={fps},trim=duration={duration:.3f},"
-            f"setpts=PTS-STARTPTS,format=yuv420p{fade_chain}[{prefix}v]"
+            f"[{input_index}:v]setpts=PTS-STARTPTS,"
+            f"scale={target_width}:{target_height}:"
+            "force_original_aspect_ratio=decrease:"
+            "force_divisible_by=2,"
+            f"pad={target_width}:{target_height}:"
+            "(ow-iw)/2:(oh-ih)/2:color=black,"
+            f"setsar=1,fps={fps},"
+            f"trim=duration={duration:.3f},"
+            f"setpts=PTS-STARTPTS,format=yuv420p"
+            f"{fade_chain}[{prefix}v]"
         ),
         (
             "anullsrc=channel_layout=stereo:sample_rate=48000,"

@@ -39,7 +39,7 @@
                     Local
                 </span>
 
-                <span class="phase-badge">Fase 8 · Productividad</span>
+                <span class="phase-badge">Fase 9 · Outro</span>
 
                 <button
                     id="themeToggle"
@@ -336,6 +336,77 @@
                             <input id="showSafeZone" type="checkbox" checked>
                             <span>Mostrar guía para futuros subtítulos en el preview</span>
                         </label>
+                    </div>
+                </div>
+
+                <div class="outro-settings">
+                    <div class="outro-heading">
+                        <div>
+                            <span>OUTRO PROMOCIONAL</span>
+                            <strong>Cierre publicitario del proyecto</strong>
+                        </div>
+
+                        <label class="branding-toggle outro-toggle">
+                            <input id="outroEnabled" type="checkbox" disabled>
+                            <span class="branding-toggle-ui"></span>
+                        </label>
+                    </div>
+
+                    <p class="outro-description">
+                        Esta imagen se agregará al final de todos los clips de este proyecto.
+                        En esta fase solo guardaremos y previsualizaremos la configuración.
+                    </p>
+
+                    <input
+                        id="outroImageInput"
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                        hidden
+                    >
+
+                    <div id="outroEmptyState" class="outro-empty">
+                        <div class="outro-empty-icon">▧</div>
+                        <div>
+                            <strong>Sin imagen promocional</strong>
+                            <span id="outroProjectHint">Carga primero el video al proyecto.</span>
+                        </div>
+                    </div>
+
+                    <div id="outroPreviewBox" class="outro-preview-box hidden">
+                        <img id="outroImagePreview" alt="Vista previa de la imagen promocional">
+                        <div class="outro-preview-meta">
+                            <strong id="outroImageName">Imagen promocional</strong>
+                            <span id="outroImageSize">—</span>
+                        </div>
+                    </div>
+
+                    <div class="outro-actions">
+                        <button id="selectOutroImageButton" class="compact-button primary-compact" type="button" disabled>
+                            Seleccionar imagen
+                        </button>
+
+                        <button id="deleteOutroImageButton" class="compact-button danger-compact" type="button" disabled>
+                            Eliminar imagen
+                        </button>
+                    </div>
+
+                    <div class="outro-options">
+                        <div class="field compact-field">
+                            <label for="outroDuration">Duración</label>
+                            <div class="input-with-unit">
+                                <input id="outroDuration" type="number" min="2" max="10" step="1" value="5" disabled>
+                                <span>segundos</span>
+                            </div>
+                        </div>
+
+                        <label class="safe-zone-toggle outro-fade-toggle">
+                            <input id="outroFade" type="checkbox" checked disabled>
+                            <span>Fade de entrada y salida</span>
+                        </label>
+                    </div>
+
+                    <div id="outroStatus" class="outro-status">
+                        La imagen será silenciosa y específica para este proyecto.
                     </div>
                 </div>
 

@@ -2684,3 +2684,132 @@ html[data-theme="light"] .settings-accordion[open] {
     white-space: pre-wrap;
     word-break: break-word;
 }
+
+
+/* =========================================================
+   PHASE 10 · V1 CLOSURE
+   ========================================================= */
+
+.generation-actions-stack {
+    min-width: 260px;
+    display: grid;
+    gap: 10px;
+}
+
+.render-engine-control {
+    display: grid;
+    gap: 5px;
+}
+
+.render-engine-control label {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 750;
+}
+
+.render-engine-control select {
+    width: 100%;
+    height: 40px;
+    padding: 0 11px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+    background: var(--control-bg);
+    color: var(--text);
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.render-engine-control select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.render-engine-control small {
+    color: var(--muted);
+    font-size: 0.64rem;
+    line-height: 1.4;
+}
+
+.danger-button {
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--danger) 9%, var(--surface));
+    color: var(--danger);
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.danger-button:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+}
+
+.danger-button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+.progress-meta {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+#progressTiming {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.results-actions {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.results-actions #outputFolder {
+    min-width: 0;
+    max-width: 520px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+html[data-theme="light"] .render-engine-control select {
+    background: #ffffff;
+}
+
+@media (max-width: 760px) {
+    .generation-actions-stack {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .progress-meta {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    #progressTiming {
+        text-align: left;
+        white-space: normal;
+    }
+
+    .results-actions {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .results-actions #outputFolder {
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-word;
+    }
+}

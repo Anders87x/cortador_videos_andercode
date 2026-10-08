@@ -347,7 +347,7 @@ def generate_video_clip(
         raise VideoServiceError(
             f"FFmpeg no pudo generar el clip {clip_index:02d}.",
             422,
-            detail[-1000:] if detail else None,
+            detail[-4000:] if detail else None,
         ) from error
 
     if not output_path.exists():

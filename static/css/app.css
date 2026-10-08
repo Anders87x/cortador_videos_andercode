@@ -2009,7 +2009,8 @@ html[data-theme="light"] .format-option:has(input:checked) {
     font-weight: 850;
     line-height: 1.15;
     text-align: center;
-    text-wrap: balance;
+    white-space: pre-line;
+    text-wrap: wrap;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(6px);
 }

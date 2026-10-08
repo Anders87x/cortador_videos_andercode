@@ -137,12 +137,61 @@ def analyze_video():
 @video_bp.post("/generate-clip")
 def generate_clip():
     payload = request.get_json(silent=True) or {}
+    filename = str(payload.get("filename") or "")
+    project_id = project_id_from_filename(filename) if filename else ""
+    project = (
+        get_project(
+            current_app.config["PROJECTS_FILE"],
+            project_id,
+        )
+        if project_id
+        else None
+    )
+
+    promo_config = {}
+
+    if project and project.get("hook_enabled"):
+        hook_path = resolve_hook_image(
+            project_id,
+            project.get("hook_image"),
+            current_app.config["PROJECT_ASSETS_FOLDER"],
+        )
+
+        if hook_path is None:
+            return jsonify({
+                "message": "El hook está activo, pero su imagen ya no está disponible."
+            }), 422
+
+        promo_config["hook"] = {
+            "image_path": hook_path,
+            "duration": project.get("hook_duration", 0.5),
+            "fade": bool(project.get("hook_fade", True)),
+        }
+
+    if project and project.get("outro_enabled"):
+        outro_path = resolve_outro_image(
+            project_id,
+            project.get("outro_image"),
+            current_app.config["PROJECT_ASSETS_FOLDER"],
+        )
+
+        if outro_path is None:
+            return jsonify({
+                "message": "El outro está activo, pero su imagen ya no está disponible."
+            }), 422
+
+        promo_config["outro"] = {
+            "image_path": outro_path,
+            "duration": project.get("outro_duration", 5),
+            "fade": bool(project.get("outro_fade", True)),
+        }
 
     try:
         data = generate_video_clip(
             payload,
             current_app.config["UPLOAD_FOLDER"],
             current_app.config["OUTPUT_FOLDER"],
+            promo_config,
         )
     except VideoServiceError as error:
         return service_error_response(error)
@@ -152,7 +201,7 @@ def generate_clip():
     update_project(
         current_app.config["PROJECTS_FILE"],
         project_id,
-        output_format=payload.get("output_format", "original"),
+        output_format=payload.get("output_format", "vertical"),
         vertical_scale=payload.get("vertical_scale", 100),
         vertical_position=payload.get("vertical_position", "center"),
         blur_strength=payload.get("blur_strength", 25),

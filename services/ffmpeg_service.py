@@ -332,6 +332,7 @@ def _build_promo_filters(
         ),
         (
             "anullsrc=channel_layout=stereo:sample_rate=48000,"
+            "aformat=sample_fmts=fltp:channel_layouts=stereo,"
             f"atrim=duration={duration:.3f},"
             f"asetpts=PTS-STARTPTS[{prefix}a]"
         ),

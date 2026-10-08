@@ -427,6 +427,7 @@ async function openRecentProject() {
         applySettings(project);
         applyHookProject(project);
         applyOutroProject(project);
+        openOutputFolderButton.disabled = !project.output_available;
         loadPreviewUrl(project.url);
 
         setStatus(

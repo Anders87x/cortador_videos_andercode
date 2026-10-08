@@ -11,6 +11,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+from services.ffmpeg_service import nvenc_available
 from services.outro_service import (
     OutroServiceError,
     delete_hook_image,
@@ -20,6 +21,9 @@ from services.outro_service import (
     save_hook_image,
     save_outro_image,
 )
+from services.render_log_service import append_render_log
+from services.render_manager import cancel_job, finish_job, is_job_cancelled
+from services.system_service import open_folder
 from services.project_service import (
     clear_projects,
     delete_project,
@@ -134,10 +138,42 @@ def analyze_video():
     return jsonify(data)
 
 
+@video_bp.get("/render-capabilities")
+def render_capabilities():
+    return jsonify({
+        "nvenc_available": nvenc_available(),
+        "default_engine": "auto",
+    })
+
+
+@video_bp.post("/render-jobs/<job_id>/cancel")
+def render_job_cancel(job_id):
+    if secure_filename(job_id) != job_id:
+        return jsonify({"message": "Identificador de render inválido."}), 400
+
+    cancel_job(job_id)
+
+    return jsonify({
+        "message": "Cancelación solicitada. FFmpeg se detendrá en cuanto sea posible.",
+        "job_id": job_id,
+    })
+
+
+@video_bp.post("/render-jobs/<job_id>/finish")
+def render_job_finish(job_id):
+    if secure_filename(job_id) != job_id:
+        return jsonify({"message": "Identificador de render inválido."}), 400
+
+    finish_job(job_id)
+
+    return jsonify({"message": "Trabajo de render finalizado."})
+
+
 @video_bp.post("/generate-clip")
 def generate_clip():
     payload = request.get_json(silent=True) or {}
     filename = str(payload.get("filename") or "")
+    job_id = str(payload.get("job_id") or "").strip()
     project_id = project_id_from_filename(filename) if filename else ""
     project = (
         get_project(
@@ -147,6 +183,9 @@ def generate_clip():
         if project_id
         else None
     )
+
+    if job_id and is_job_cancelled(job_id):
+        return jsonify({"message": "Render cancelado por el usuario."}), 409
 
     promo_config = {}
 
@@ -194,6 +233,18 @@ def generate_clip():
             promo_config,
         )
     except VideoServiceError as error:
+        append_render_log(
+            current_app.config["RENDER_LOG_FILE"],
+            status="cancelled" if error.status_code == 409 else "error",
+            project_id=project_id or None,
+            filename=filename or None,
+            job_id=job_id or None,
+            clip_index=payload.get("index"),
+            output_format=payload.get("output_format", "vertical"),
+            encoder_mode=payload.get("encoder_mode", "auto"),
+            message=error.message,
+            detail=error.detail,
+        )
         return service_error_response(error)
 
     project_id = data["project_name"]
@@ -210,6 +261,22 @@ def generate_clip():
         branding_handle=str(payload.get("branding_handle") or "").strip(),
     )
 
+    append_render_log(
+        current_app.config["RENDER_LOG_FILE"],
+        status="success",
+        project_id=project_id,
+        filename=filename,
+        job_id=job_id or None,
+        clip_index=data.get("index"),
+        output_format=data.get("output_format"),
+        duration=data.get("duration"),
+        encoder_mode=data.get("encoder_mode"),
+        encoder_used=data.get("encoder_used"),
+        hook_enabled=data.get("hook_enabled"),
+        outro_enabled=data.get("outro_enabled"),
+        output_file=data.get("filename"),
+    )
+
     data["url"] = url_for(
         "video.generated_clip",
         project=data.pop("project_name"),
@@ -218,6 +285,29 @@ def generate_clip():
     )
 
     return jsonify(data)
+
+
+@video_bp.post("/projects/<project_id>/open-output")
+def project_open_output(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    project_output = Path(current_app.config["OUTPUT_FOLDER"]) / project_id
+
+    try:
+        open_folder(project_output)
+    except (FileNotFoundError, OSError) as error:
+        return jsonify({"message": str(error)}), 404
+
+    return jsonify({"message": "Carpeta de resultados abierta."})
 
 
 @video_bp.get("/projects")

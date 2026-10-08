@@ -53,8 +53,10 @@ class FfmpegBuilderTest(unittest.TestCase):
         graph = ";".join(filters)
 
         self.assertIn("drawbox=", graph)
-        self.assertEqual(graph.count("brand_title_"), 6)
-        self.assertIn("brand_handle", output_label)
+        self.assertIn("brand_title_1", graph)
+        self.assertIn("brand_title_2", graph)
+        self.assertIn("brand_title_3", graph)
+        self.assertEqual(output_label, "brand_handle")
 
     def test_cpu_encoder_args(self):
         args = _video_encoder_args("cpu")

@@ -1054,6 +1054,87 @@ function updateVerticalPreviewStyle() {
         `blur(${previewBlur}px) brightness(0.62)`;
 }
 
+function balanceBrandingTitle(text, maxChars = 24, maxLines = 3) {
+    const cleanText = String(text || "").trim().replace(/\s+/g, " ");
+
+    if (!cleanText) {
+        return [];
+    }
+
+    const words = cleanText.split(" ");
+    const totalChars = cleanText.length;
+    const lineCount = Math.max(
+        1,
+        Math.min(
+            maxLines,
+            words.length,
+            Math.ceil(totalChars / maxChars)
+        )
+    );
+
+    if (lineCount === 1) {
+        return [cleanText];
+    }
+
+    const target = totalChars / lineCount;
+    let bestLines = null;
+    let bestScore = null;
+
+    const evaluate = (lines) => {
+        const lengths = lines.map((line) => line.length);
+        const overflow = lengths.reduce(
+            (total, length) =>
+                total + (Math.max(0, length - maxChars) ** 2 * 100),
+            0
+        );
+        const balance = lengths.reduce(
+            (total, length) =>
+                total + ((length - target) ** 2),
+            0
+        );
+        const spread = (
+            Math.max(...lengths) - Math.min(...lengths)
+        ) ** 2;
+        const score = overflow + balance + spread;
+
+        if (bestScore === null || score < bestScore) {
+            bestScore = score;
+            bestLines = lines;
+        }
+    };
+
+    const search = (startIndex, remainingLines, currentLines) => {
+        if (remainingLines === 1) {
+            const finalLine = words.slice(startIndex).join(" ");
+
+            if (finalLine) {
+                evaluate([...currentLines, finalLine]);
+            }
+
+            return;
+        }
+
+        const maxEnd = words.length - remainingLines + 1;
+
+        for (
+            let endIndex = startIndex + 1;
+            endIndex <= maxEnd;
+            endIndex += 1
+        ) {
+            const line = words.slice(startIndex, endIndex).join(" ");
+            search(
+                endIndex,
+                remainingLines - 1,
+                [...currentLines, line]
+            );
+        }
+    };
+
+    search(0, lineCount, []);
+
+    return bestLines || [cleanText];
+}
+
 function updateBrandingPreview() {
     const enabled = brandingEnabled.checked && outputFormat === "vertical";
     const title = brandingTitle.value.trim();
@@ -1062,7 +1143,7 @@ function updateBrandingPreview() {
     brandingSettings.classList.toggle("hidden", !brandingEnabled.checked);
     brandingPreview.classList.toggle("hidden", !enabled);
 
-    brandingTitlePreview.textContent = title;
+    brandingTitlePreview.textContent = balanceBrandingTitle(title).join("\n");
     brandingTitlePreview.classList.toggle("hidden", !title);
 
     brandingHandlePreview.textContent = handle;

@@ -633,7 +633,6 @@ def build_vertical_filter(
     branding_enabled=False,
     branding_title="",
     branding_handle="",
-    encoder="cpu",
 ):
     target_width = max(2, int(round(1080 * vertical_scale / 100)))
     target_height = max(2, int(round(1920 * vertical_scale / 100)))
@@ -687,6 +686,7 @@ def build_ffmpeg_command(
     branding_enabled=False,
     branding_title="",
     branding_handle="",
+    encoder="cpu",
 ):
     base = [
         "ffmpeg",

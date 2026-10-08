@@ -2459,3 +2459,195 @@ html[data-theme="light"] .outro-status {
         gap: 4px;
     }
 }
+
+
+/* =========================================================
+   PHASE 9.2 · COMPACT SETTINGS + HOOK
+   ========================================================= */
+
+@media (min-width: 901px) {
+    .workspace {
+        grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.95fr);
+    }
+}
+
+.settings-panel {
+    padding: 18px;
+}
+
+.settings-panel-heading {
+    margin-bottom: 14px;
+}
+
+.settings-hint {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 650;
+}
+
+.settings-accordion-list {
+    display: grid;
+    gap: 8px;
+}
+
+.settings-accordion {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--soft-card-bg);
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease;
+}
+
+.settings-accordion[open] {
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+    background: color-mix(in srgb, var(--accent-soft) 38%, var(--surface));
+}
+
+.settings-accordion > summary {
+    min-height: 54px;
+    padding: 10px 11px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+.settings-accordion > summary::-webkit-details-marker {
+    display: none;
+}
+
+.settings-accordion > summary::marker {
+    display: none;
+    content: "";
+}
+
+.settings-accordion > summary:hover {
+    background: var(--hover-bg);
+}
+
+.accordion-index {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(124, 92, 255, 0.22);
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.62rem;
+    font-weight: 850;
+}
+
+.accordion-copy {
+    min-width: 0;
+}
+
+.accordion-copy strong,
+.accordion-copy small {
+    display: block;
+}
+
+.accordion-copy strong {
+    color: var(--text);
+    font-size: 0.78rem;
+}
+
+.accordion-copy small {
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.accordion-chevron {
+    color: var(--muted);
+    font-size: 0.9rem;
+    transform: rotate(0deg);
+    transition: transform 0.18s ease;
+}
+
+.settings-accordion[open] .accordion-chevron {
+    transform: rotate(180deg);
+}
+
+.accordion-content {
+    padding: 4px 12px 14px;
+    border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.accordion-content .compact-field + .compact-field {
+    margin-top: 13px;
+}
+
+.settings-accordion .format-options {
+    gap: 7px;
+}
+
+.settings-accordion .format-option {
+    padding: 10px;
+}
+
+.settings-accordion .branding-settings {
+    margin-top: 12px;
+    padding: 11px;
+}
+
+.promo-block {
+    padding-top: 8px;
+}
+
+.promo-block .outro-description {
+    margin-bottom: 11px;
+}
+
+.promo-block .outro-empty {
+    min-height: 76px;
+    padding: 11px;
+}
+
+.promo-block .outro-empty-icon {
+    width: 36px;
+    height: 36px;
+}
+
+.promo-block .outro-preview-box img {
+    max-height: 155px;
+}
+
+.promo-block .outro-options {
+    margin-top: 11px;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-summary-card {
+    margin-top: 12px;
+    padding: 12px;
+    gap: 8px;
+}
+
+.settings-summary-card span,
+.settings-summary-card strong {
+    font-size: 0.72rem;
+}
+
+html[data-theme="light"] .settings-accordion {
+    background: #ffffff;
+}
+
+html[data-theme="light"] .settings-accordion[open] {
+    background: #fbfaff;
+}
+
+@media (max-width: 900px) {
+    .settings-hint {
+        display: none;
+    }
+}

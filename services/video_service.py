@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 
 from config import OUTPUT_FORMATS
 from services.ffmpeg_service import (
+    RenderCancelledError,
     ffmpeg_available,
     ffprobe_available,
     probe_video,
@@ -144,6 +145,14 @@ def generate_video_clip(
     branding_enabled = payload.get("branding_enabled") is True
     branding_title = str(payload.get("branding_title") or "").strip()
     branding_handle = str(payload.get("branding_handle") or "").strip()
+    encoder_mode = str(payload.get("encoder_mode") or "auto").lower()
+    job_id = str(payload.get("job_id") or "").strip()
+
+    if encoder_mode not in {"auto", "gpu", "cpu"}:
+        raise VideoServiceError(
+            "El motor de render seleccionado no es válido.",
+            400,
+        )
 
     if output_format not in OUTPUT_FORMATS:
         raise VideoServiceError(
@@ -339,7 +348,11 @@ def generate_video_clip(
             metadata,
             hook,
             outro,
+            encoder_mode,
+            job_id,
         )
+    except RenderCancelledError as error:
+        raise VideoServiceError(str(error), 409) from error
     except RuntimeError as error:
         raise VideoServiceError(str(error), 503) from error
     except subprocess.CalledProcessError as error:
@@ -385,6 +398,8 @@ def generate_video_clip(
         "branding_enabled": branding_enabled,
         "branding_title": branding_title if branding_enabled else None,
         "branding_handle": branding_handle if branding_enabled else None,
+        "encoder_mode": encoder_mode,
+        "encoder_used": getattr(result, "encoder_used", "CPU · libx264"),
         "output_folder": str(project_output.resolve()),
         "project_name": project_name,
         "format_folder": format_folder,

@@ -435,6 +435,7 @@ def _build_promo_command(
         filters.append(
             (
                 "anullsrc=channel_layout=stereo:sample_rate=48000,"
+                "aformat=sample_fmts=fltp:channel_layouts=stereo,"
                 f"atrim=duration={clip_duration:.3f},"
                 "asetpts=PTS-STARTPTS[clipa]"
             )
@@ -479,8 +480,11 @@ def _build_promo_command(
     filters.append(
         (
             f"{concat_inputs}concat=n={len(concat_segments)}:"
-            "v=1:a=1[vfinal][afinal]"
+            "v=1:a=1[vconcat][afinal]"
         )
+    )
+    filters.append(
+        f"[vconcat]fps={fps},format=yuv420p[vfinal]"
     )
 
     command.extend([
@@ -491,6 +495,8 @@ def _build_promo_command(
         "-map",
         "[afinal]",
         "-sn",
+        "-r",
+        str(fps),
         "-c:v",
         "libx264",
         "-preset",

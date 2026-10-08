@@ -7,6 +7,7 @@ OUTPUT_FOLDER = BASE_DIR / "outputs"
 DATA_FOLDER = BASE_DIR / "data"
 PROJECTS_FILE = DATA_FOLDER / "projects.json"
 PROJECT_ASSETS_FOLDER = DATA_FOLDER / "project_assets"
+RENDER_LOG_FILE = DATA_FOLDER / "render_logs.jsonl"
 
 ALLOWED_EXTENSIONS = {"mp4", "mov", "mkv", "webm", "avi"}
 OUTPUT_FORMATS = {"original", "vertical"}

@@ -62,6 +62,11 @@ const contentScaleValue = document.getElementById("contentScaleValue");
 const blurStrength = document.getElementById("blurStrength");
 const blurStrengthValue = document.getElementById("blurStrengthValue");
 const verticalPositionInputs = [...document.querySelectorAll('input[name="verticalPosition"]')];
+const frameAccordionSummary = document.getElementById("frameAccordionSummary");
+const brandingAccordion = document.getElementById("brandingAccordion");
+const brandingAccordionSummary = document.getElementById("brandingAccordionSummary");
+const hookAccordionSummary = document.getElementById("hookAccordionSummary");
+const outroAccordionSummary = document.getElementById("outroAccordionSummary");
 const brandingEnabled = document.getElementById("brandingEnabled");
 const brandingSettings = document.getElementById("brandingSettings");
 const brandingTitle = document.getElementById("brandingTitle");
@@ -71,6 +76,20 @@ const brandingPreview = document.getElementById("brandingPreview");
 const brandingTitlePreview = document.getElementById("brandingTitlePreview");
 const brandingHandlePreview = document.getElementById("brandingHandlePreview");
 const subtitleSafeZone = document.getElementById("subtitleSafeZone");
+
+const hookEnabled = document.getElementById("hookEnabled");
+const hookImageInput = document.getElementById("hookImageInput");
+const selectHookImageButton = document.getElementById("selectHookImageButton");
+const deleteHookImageButton = document.getElementById("deleteHookImageButton");
+const hookEmptyState = document.getElementById("hookEmptyState");
+const hookProjectHint = document.getElementById("hookProjectHint");
+const hookPreviewBox = document.getElementById("hookPreviewBox");
+const hookImagePreview = document.getElementById("hookImagePreview");
+const hookImageName = document.getElementById("hookImageName");
+const hookImageSize = document.getElementById("hookImageSize");
+const hookDuration = document.getElementById("hookDuration");
+const hookFade = document.getElementById("hookFade");
+const hookStatus = document.getElementById("hookStatus");
 
 const outroEnabled = document.getElementById("outroEnabled");
 const outroImageInput = document.getElementById("outroImageInput");
@@ -93,9 +112,10 @@ let activePreviewEnd = null;
 let currentSegments = [];
 let generationInProgress = false;
 let ffmpegReady = false;
-let outputFormat = "original";
+let outputFormat = "vertical";
 let recentProjects = [];
 let activeProjectId = null;
+let hookHasImage = false;
 let outroHasImage = false;
 
 const THEME_STORAGE_KEY = "andercode-video-theme";
@@ -190,7 +210,7 @@ function applySettings(settings = {}) {
     contentScale.value = settings.vertical_scale ?? 100;
     blurStrength.value = settings.blur_strength ?? 25;
 
-    const desiredFormat = settings.output_format || "original";
+    const desiredFormat = settings.output_format || "vertical";
     const formatInput = outputFormatInputs.find(
         (input) => input.value === desiredFormat
     );
@@ -208,8 +228,8 @@ function applySettings(settings = {}) {
         positionInput.checked = true;
     }
 
-    brandingEnabled.checked = Boolean(settings.branding_enabled);
-    brandingHandle.value = settings.branding_handle ?? "@AnderCode";
+    brandingEnabled.checked = settings.branding_enabled !== false;
+    brandingHandle.value = settings.branding_handle ?? "anderson-bastidas.com";
     showSafeZone.checked = settings.show_safe_zone !== false;
 
     if (typeof settings.branding_title === "string" && settings.branding_title.trim()) {
@@ -393,6 +413,7 @@ async function openRecentProject() {
         analyzeButton.classList.remove("hidden");
 
         applySettings(project);
+        applyHookProject(project);
         applyOutroProject(project);
         loadPreviewUrl(project.url);
 
@@ -407,6 +428,222 @@ async function openRecentProject() {
         });
     } catch (error) {
         setStatus(error.message || "No se pudo abrir el proyecto.", "error");
+    }
+}
+
+function setHookStatus(message, type = "") {
+    hookStatus.textContent = message;
+    hookStatus.className = "outro-status";
+
+    if (type) {
+        hookStatus.classList.add(type);
+    }
+}
+
+function refreshHookControlsDisabled(forceDisabled = false) {
+    const hasProject = Boolean(activeProjectId);
+    const disabled = forceDisabled || !hasProject;
+
+    selectHookImageButton.disabled = disabled;
+    hookDuration.disabled = disabled;
+    hookFade.disabled = disabled;
+    deleteHookImageButton.disabled = disabled || !hookHasImage;
+    hookEnabled.disabled = disabled || !hookHasImage;
+}
+
+function resetHookProject() {
+    hookHasImage = false;
+    hookEnabled.checked = false;
+    hookDuration.value = 0.5;
+    hookFade.checked = true;
+    hookImageInput.value = "";
+    hookImagePreview.removeAttribute("src");
+    hookPreviewBox.classList.add("hidden");
+    hookEmptyState.classList.remove("hidden");
+    hookProjectHint.textContent = "Carga primero el video al proyecto.";
+    hookImageName.textContent = "Imagen de gancho";
+    hookImageSize.textContent = "—";
+    hookAccordionSummary.textContent = "Sin imagen · 0.5 s";
+    refreshHookControlsDisabled();
+    setHookStatus("PNG, JPG, JPEG o WEBP · máximo 10 MB.");
+}
+
+function applyHookProject(project = {}) {
+    activeProjectId = project.id || activeProjectId;
+    hookHasImage = Boolean(project.hook_image);
+
+    hookEnabled.checked = Boolean(project.hook_enabled && hookHasImage);
+    hookDuration.value = project.hook_duration ?? 0.5;
+    hookFade.checked = project.hook_fade !== false;
+
+    if (hookHasImage && project.hook_image_url) {
+        hookImagePreview.src =
+            `${project.hook_image_url}?v=${encodeURIComponent(project.updated_at || Date.now())}`;
+        hookImageName.textContent =
+            project.hook_image_original_name || project.hook_image;
+        hookImageSize.textContent = formatBytes(
+            Number(project.hook_image_size) || 0
+        );
+        hookPreviewBox.classList.remove("hidden");
+        hookEmptyState.classList.add("hidden");
+    } else {
+        hookImagePreview.removeAttribute("src");
+        hookImageName.textContent = "Imagen de gancho";
+        hookImageSize.textContent = "—";
+        hookPreviewBox.classList.add("hidden");
+        hookEmptyState.classList.remove("hidden");
+        hookProjectHint.textContent = activeProjectId
+            ? "Selecciona una imagen de gancho para este proyecto."
+            : "Carga primero el video al proyecto.";
+    }
+
+    hookAccordionSummary.textContent = hookHasImage
+        ? `${hookEnabled.checked ? "Activo" : "Pausado"} · ${hookDuration.value} s`
+        : `Sin imagen · ${hookDuration.value} s`;
+
+    refreshHookControlsDisabled();
+    setHookStatus(
+        hookHasImage
+            ? "El gancho se aplicará al inicio de todos los clips cuando integremos el render final."
+            : "PNG, JPG, JPEG o WEBP · máximo 10 MB."
+    );
+}
+
+async function saveHookSettings() {
+    if (!activeProjectId) {
+        return false;
+    }
+
+    try {
+        const response = await fetch(
+            `/projects/${encodeURIComponent(activeProjectId)}/hook`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    hook_enabled: hookEnabled.checked,
+                    hook_duration: Number(hookDuration.value) || 0.5,
+                    hook_fade: hookFade.checked,
+                }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.message || "No se pudo guardar la configuración del hook."
+            );
+        }
+
+        applyHookProject(data);
+        await loadRecentProjects(activeProjectId);
+        setHookStatus("Configuración del hook guardada.", "success");
+        return true;
+    } catch (error) {
+        setHookStatus(
+            error.message || "No se pudo guardar la configuración del hook.",
+            "error"
+        );
+
+        if (!hookHasImage) {
+            hookEnabled.checked = false;
+        }
+
+        return false;
+    }
+}
+
+async function uploadHookImage(file) {
+    if (!activeProjectId || !file) {
+        return;
+    }
+
+    const allowedExtensions = ["png", "jpg", "jpeg", "webp"];
+    const extension = file.name.split(".").pop()?.toLowerCase();
+
+    if (!allowedExtensions.includes(extension)) {
+        setHookStatus("Usa una imagen PNG, JPG, JPEG o WEBP.", "error");
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        setHookStatus("La imagen supera el límite de 10 MB.", "error");
+        return;
+    }
+
+    selectHookImageButton.disabled = true;
+    deleteHookImageButton.disabled = true;
+    setHookStatus("Guardando imagen de gancho...");
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+        const response = await fetch(
+            `/projects/${encodeURIComponent(activeProjectId)}/hook-image`,
+            {
+                method: "POST",
+                body: formData,
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudo guardar la imagen.");
+        }
+
+        hookImageInput.value = "";
+        applyHookProject(data);
+        await loadRecentProjects(activeProjectId);
+        setHookStatus(
+            "Imagen guardada. El hook quedó activado para este proyecto.",
+            "success"
+        );
+    } catch (error) {
+        setHookStatus(
+            error.message || "No se pudo guardar la imagen de gancho.",
+            "error"
+        );
+        refreshHookControlsDisabled();
+    }
+}
+
+async function removeHookImage() {
+    if (!activeProjectId || !hookHasImage) {
+        return;
+    }
+
+    if (!window.confirm("¿Eliminar la imagen de gancho de este proyecto?")) {
+        return;
+    }
+
+    refreshHookControlsDisabled(true);
+    setHookStatus("Eliminando imagen de gancho...");
+
+    try {
+        const response = await fetch(
+            `/projects/${encodeURIComponent(activeProjectId)}/hook-image`,
+            { method: "DELETE" }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "No se pudo eliminar la imagen.");
+        }
+
+        applyHookProject(data);
+        await loadRecentProjects(activeProjectId);
+        setHookStatus(data.message, "success");
+    } catch (error) {
+        setHookStatus(
+            error.message || "No se pudo eliminar la imagen de gancho.",
+            "error"
+        );
+        refreshHookControlsDisabled();
     }
 }
 
@@ -431,7 +668,6 @@ function refreshOutroControlsDisabled(forceDisabled = false) {
 }
 
 function resetOutroProject() {
-    activeProjectId = null;
     outroHasImage = false;
     outroEnabled.checked = false;
     outroDuration.value = 5;
@@ -443,6 +679,11 @@ function resetOutroProject() {
     outroProjectHint.textContent = "Carga primero el video al proyecto.";
     outroImageName.textContent = "Imagen promocional";
     outroImageSize.textContent = "—";
+    outroAccordionSummary.textContent = "Sin imagen · 5 s";
+    outroAccordionSummary.textContent = outroHasImage
+        ? `${outroEnabled.checked ? "Activo" : "Pausado"} · ${outroDuration.value} s`
+        : `Sin imagen · ${outroDuration.value} s`;
+
     refreshOutroControlsDisabled();
     setOutroStatus(
         "La imagen será silenciosa y específica para este proyecto."
@@ -786,6 +1027,15 @@ function updateVerticalPreviewStyle() {
         verticalForeground.style.transform = "translateX(-50%)";
     }
 
+    const positionLabel = {
+        top: "Arriba",
+        center: "Centro",
+        bottom: "Abajo",
+    }[position] || "Centro";
+
+    frameAccordionSummary.textContent =
+        `${scale}% · ${positionLabel} · Blur ${blur}`;
+
     const previewBlur = Math.max(4, Math.round(blur * 0.72));
     verticalBackground.style.filter =
         `blur(${previewBlur}px) brightness(0.62)`;
@@ -814,6 +1064,10 @@ function updateBrandingPreview() {
 
     brandingHandlePreview.style.fontSize = handleFontSize;
 
+    brandingAccordionSummary.textContent = brandingEnabled.checked
+        ? `Activo · ${handle || "Sin firma"}`
+        : "Desactivado";
+
     subtitleSafeZone.classList.toggle("hidden", !showSafeZone.checked);
 }
 
@@ -823,6 +1077,7 @@ function updateOutputFormat() {
 
     verticalPreviewCard.classList.toggle("hidden", !isVertical);
     verticalSettings.classList.toggle("hidden", !isVertical);
+    brandingAccordion.classList.toggle("hidden", !isVertical);
 
     outputFormatSummary.textContent = isVertical
         ? "Salida: Reel 9:16 · 1080×1920"
@@ -940,6 +1195,8 @@ function resetGeneration() {
 
 function resetAnalysis() {
     uploadedFilename = null;
+    activeProjectId = null;
+    resetHookProject();
     resetOutroProject();
     currentSegments = [];
     ffmpegReady = false;
@@ -1119,6 +1376,7 @@ function setGenerationControlsDisabled(disabled) {
     brandingTitle.disabled = disabled;
     brandingHandle.disabled = disabled;
     showSafeZone.disabled = disabled;
+    refreshHookControlsDisabled(disabled);
     refreshOutroControlsDisabled(disabled);
 
     updateSelectedCount();
@@ -1421,6 +1679,45 @@ brandingEnabled.addEventListener("change", () => {
 
 showSafeZone.addEventListener("change", updateBrandingPreview);
 
+selectHookImageButton.addEventListener("click", () => {
+    if (!activeProjectId) {
+        setHookStatus("Carga primero el video al proyecto.", "error");
+        return;
+    }
+
+    hookImageInput.click();
+});
+
+hookImageInput.addEventListener("change", () => {
+    const file = hookImageInput.files[0];
+
+    if (file) {
+        uploadHookImage(file);
+    }
+});
+
+deleteHookImageButton.addEventListener("click", removeHookImage);
+
+hookEnabled.addEventListener("change", saveHookSettings);
+
+hookDuration.addEventListener("change", () => {
+    const duration = Number(hookDuration.value);
+
+    if (!Number.isFinite(duration) || duration < 0.2 || duration > 3) {
+        setHookStatus(
+            "La duración debe estar entre 0.2 y 3 segundos.",
+            "error"
+        );
+        hookDuration.value = 0.5;
+        return;
+    }
+
+    hookDuration.value = Math.round(duration * 10) / 10;
+    saveHookSettings();
+});
+
+hookFade.addEventListener("change", saveHookSettings);
+
 selectOutroImageButton.addEventListener("click", () => {
     if (!activeProjectId) {
         setOutroStatus("Carga primero el video al proyecto.", "error");
@@ -1529,6 +1826,13 @@ uploadForm.addEventListener("submit", async (event) => {
         uploadedFilename = data.filename;
         activeProjectId = data.project_id;
         analyzeButton.classList.remove("hidden");
+        applyHookProject({
+            id: data.project_id,
+            hook_enabled: false,
+            hook_image: null,
+            hook_duration: 0.5,
+            hook_fade: true,
+        });
         applyOutroProject({
             id: data.project_id,
             outro_enabled: false,
@@ -1749,6 +2053,7 @@ generateButton.addEventListener("click", async () => {
 
 
 renderPresetOptions("builtin:Reel AnderCode");
+resetHookProject();
 resetOutroProject();
 loadRecentProjects();
 updateThemeControl();

@@ -73,6 +73,13 @@ def project_with_url(project):
             project_id=data["id"],
         )
 
+    if data.get("id"):
+        project_output = (
+            Path(current_app.config["OUTPUT_FOLDER"])
+            / data["id"]
+        )
+        data["output_available"] = project_output.exists()
+
     return data
 
 

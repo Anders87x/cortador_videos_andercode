@@ -3,7 +3,7 @@ from pathlib import Path
 from werkzeug.utils import secure_filename
 
 
-ALLOWED_OUTRO_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+ALLOWED_PROMO_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 
 class OutroServiceError(Exception):
@@ -24,12 +24,7 @@ def project_asset_folder(assets_root, project_id):
     return Path(assets_root) / project_id
 
 
-def save_outro_image(
-    image,
-    project_id,
-    assets_root,
-    max_size_bytes,
-):
+def _validate_image(image, max_size_bytes):
     if image is None or not image.filename:
         raise OutroServiceError("Selecciona una imagen promocional.", 400)
 
@@ -41,7 +36,7 @@ def save_outro_image(
 
     extension = image.filename.rsplit(".", 1)[1].lower()
 
-    if extension not in ALLOWED_OUTRO_EXTENSIONS:
+    if extension not in ALLOWED_PROMO_EXTENSIONS:
         raise OutroServiceError(
             "Formato no permitido. Usa PNG, JPG, JPEG o WEBP.",
             400,
@@ -62,14 +57,25 @@ def save_outro_image(
             413,
         )
 
+    return extension
+
+
+def _save_project_image(
+    image,
+    project_id,
+    assets_root,
+    max_size_bytes,
+    asset_name,
+):
+    extension = _validate_image(image, max_size_bytes)
     folder = project_asset_folder(assets_root, project_id)
     folder.mkdir(parents=True, exist_ok=True)
 
-    for existing in folder.glob("outro.*"):
+    for existing in folder.glob(f"{asset_name}.*"):
         if existing.is_file():
             existing.unlink()
 
-    filename = f"outro.{extension}"
+    filename = f"{asset_name}.{extension}"
     destination = folder / filename
     image.save(destination)
 
@@ -81,12 +87,12 @@ def save_outro_image(
     }
 
 
-def delete_outro_image(project_id, assets_root):
+def _delete_project_image(project_id, assets_root, asset_name):
     folder = project_asset_folder(assets_root, project_id)
     deleted = False
 
     if folder.exists():
-        for existing in folder.glob("outro.*"):
+        for existing in folder.glob(f"{asset_name}.*"):
             if existing.is_file():
                 existing.unlink()
                 deleted = True
@@ -99,14 +105,14 @@ def delete_outro_image(project_id, assets_root):
     return deleted
 
 
-def resolve_outro_image(project_id, filename, assets_root):
+def _resolve_project_image(project_id, filename, assets_root, asset_name):
     if not filename:
         return None
 
     folder = project_asset_folder(assets_root, project_id)
     safe_filename = secure_filename(Path(filename).name)
 
-    if safe_filename != filename:
+    if safe_filename != filename or not safe_filename.startswith(f"{asset_name}."):
         return None
 
     path = folder / safe_filename
@@ -115,3 +121,49 @@ def resolve_outro_image(project_id, filename, assets_root):
         return None
 
     return path
+
+
+def save_outro_image(image, project_id, assets_root, max_size_bytes):
+    return _save_project_image(
+        image,
+        project_id,
+        assets_root,
+        max_size_bytes,
+        "outro",
+    )
+
+
+def delete_outro_image(project_id, assets_root):
+    return _delete_project_image(project_id, assets_root, "outro")
+
+
+def resolve_outro_image(project_id, filename, assets_root):
+    return _resolve_project_image(
+        project_id,
+        filename,
+        assets_root,
+        "outro",
+    )
+
+
+def save_hook_image(image, project_id, assets_root, max_size_bytes):
+    return _save_project_image(
+        image,
+        project_id,
+        assets_root,
+        max_size_bytes,
+        "hook",
+    )
+
+
+def delete_hook_image(project_id, assets_root):
+    return _delete_project_image(project_id, assets_root, "hook")
+
+
+def resolve_hook_image(project_id, filename, assets_root):
+    return _resolve_project_image(
+        project_id,
+        filename,
+        assets_root,
+        "hook",
+    )

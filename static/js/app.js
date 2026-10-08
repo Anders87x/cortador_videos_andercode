@@ -62,6 +62,7 @@ const contentScaleValue = document.getElementById("contentScaleValue");
 const blurStrength = document.getElementById("blurStrength");
 const blurStrengthValue = document.getElementById("blurStrengthValue");
 const verticalPositionInputs = [...document.querySelectorAll('input[name="verticalPosition"]')];
+const basicAccordionSummary = document.getElementById("basicAccordionSummary");
 const frameAccordionSummary = document.getElementById("frameAccordionSummary");
 const brandingAccordion = document.getElementById("brandingAccordion");
 const brandingAccordionSummary = document.getElementById("brandingAccordionSummary");
@@ -1075,6 +1076,9 @@ function updateOutputFormat() {
     outputFormat = getOutputFormat();
     const isVertical = outputFormat === "vertical";
 
+    basicAccordionSummary.textContent =
+        `${Number(introSeconds.value) || 0} s intro · ${Number(clipSeconds.value) || 30} s clips · ${isVertical ? "Reel 9:16" : "Original"}`;
+
     verticalPreviewCard.classList.toggle("hidden", !isVertical);
     verticalSettings.classList.toggle("hidden", !isVertical);
     brandingAccordion.classList.toggle("hidden", !isVertical);
@@ -1145,6 +1149,9 @@ function recalculateClips() {
     const duration = videoPreview.duration;
     const intro = Math.max(0, Number(introSeconds.value) || 0);
     const clip = Math.max(1, Number(clipSeconds.value) || 30);
+
+    basicAccordionSummary.textContent =
+        `${intro} s intro · ${clip} s clips · ${getOutputFormat() === "vertical" ? "Reel 9:16" : "Original"}`;
 
     if (!Number.isFinite(duration)) {
         videoDuration.textContent = "—";

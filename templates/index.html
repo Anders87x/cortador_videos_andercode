@@ -39,7 +39,7 @@
                     Local
                 </span>
 
-                <span class="phase-badge">Fase 9.3 · Render final</span>
+                <span class="phase-badge">Fase 10 · V1</span>
 
                 <button
                     id="themeToggle"
@@ -641,9 +641,25 @@
                     </span>
                 </div>
 
-                <button id="generateButton" class="primary-button generation-button" type="button" disabled>
-                    Generar clips seleccionados
-                </button>
+                <div class="generation-actions-stack">
+                    <div class="render-engine-control">
+                        <label for="renderEngineSelect">Motor de render</label>
+                        <select id="renderEngineSelect">
+                            <option value="auto" selected>Auto · recomendado</option>
+                            <option value="gpu">NVIDIA NVENC · GPU</option>
+                            <option value="cpu">CPU · libx264</option>
+                        </select>
+                        <small id="renderEngineHint">Detectando capacidades...</small>
+                    </div>
+
+                    <button id="generateButton" class="primary-button generation-button" type="button" disabled>
+                        Generar clips seleccionados
+                    </button>
+
+                    <button id="cancelGenerationButton" class="danger-button generation-cancel-button hidden" type="button">
+                        Cancelar procesamiento
+                    </button>
+                </div>
             </div>
 
             <div id="generationProgress" class="generation-progress hidden">
@@ -656,7 +672,10 @@
                     <div id="progressBar" class="progress-bar"></div>
                 </div>
 
-                <span id="progressDetail" class="muted">Esperando generación.</span>
+                <div class="progress-meta">
+                    <span id="progressDetail" class="muted">Esperando generación.</span>
+                    <span id="progressTiming" class="muted"></span>
+                </div>
             </div>
 
             <div id="generatedResults" class="generated-results hidden">
@@ -665,7 +684,12 @@
                         <span class="step">✓</span>
                         <h3>Clips generados</h3>
                     </div>
-                    <span id="outputFolder" class="muted"></span>
+                    <div class="results-actions">
+                        <span id="outputFolder" class="muted"></span>
+                        <button id="openOutputFolderButton" class="ghost-button" type="button" disabled>
+                            Abrir carpeta
+                        </button>
+                    </div>
                 </div>
 
                 <div id="generatedList" class="generated-list"></div>

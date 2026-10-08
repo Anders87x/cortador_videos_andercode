@@ -1,6 +1,10 @@
 import json
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+_log_lock = threading.Lock()
 
 
 def append_render_log(log_file, **record):
@@ -12,5 +16,11 @@ def append_render_log(log_file, **record):
         **record,
     }
 
-    with path.open("a", encoding="utf-8") as file:
-        file.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    try:
+        with _log_lock:
+            with path.open("a", encoding="utf-8") as file:
+                file.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except OSError:
+        return False
+
+    return True

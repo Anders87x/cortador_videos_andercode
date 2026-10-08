@@ -1399,7 +1399,27 @@ function renderGeneratedClip(data) {
 
     name.textContent = data.filename;
     const formatLabel = data.output_format === "vertical" ? "Reel 9:16" : "Original";
-    meta.textContent = `${formatDuration(data.duration)} · ${formatBytes(data.size)} · ${formatLabel} · ${data.resolution || "—"}`;
+    const durationValue = Number(data.duration);
+    const durationLabel = Number.isFinite(durationValue)
+        ? `${durationValue.toFixed(Number.isInteger(durationValue) ? 0 : 1)} s`
+        : "—";
+    const promoLabels = [];
+
+    if (data.hook_enabled) {
+        promoLabels.push(`Hook ${data.hook_duration} s`);
+    }
+
+    if (data.outro_enabled) {
+        promoLabels.push(`Outro ${data.outro_duration} s`);
+    }
+
+    meta.textContent = [
+        durationLabel,
+        formatBytes(data.size),
+        formatLabel,
+        data.resolution || "—",
+        ...promoLabels,
+    ].join(" · ");
 
     info.append(name, meta);
 
@@ -1950,9 +1970,14 @@ generateButton.addEventListener("click", async () => {
     setGenerationControlsDisabled(true);
 
     generateButton.textContent = "Generando clips...";
+    const promoSummary = [
+        hookEnabled.checked ? `hook ${hookDuration.value}s` : "",
+        outroEnabled.checked ? `outro ${outroDuration.value}s` : "",
+    ].filter(Boolean).join(" · ");
+
     const formatLabel = outputFormat === "vertical"
-        ? `Reel 9:16 · ${contentScale.value}% · ${getVerticalPosition()}${brandingEnabled.checked ? " · branding" : ""}`
-        : "formato original";
+        ? `Reel 9:16 · ${contentScale.value}% · ${getVerticalPosition()}${brandingEnabled.checked ? " · branding" : ""}${promoSummary ? ` · ${promoSummary}` : ""}`
+        : `formato original${promoSummary ? ` · ${promoSummary}` : ""}`;
 
     setStatus(
         `Generando ${selectedSegments.length} ${selectedSegments.length === 1 ? "clip" : "clips"} en ${formatLabel} con FFmpeg...`

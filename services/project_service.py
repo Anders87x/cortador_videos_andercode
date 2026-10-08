@@ -60,6 +60,12 @@ def register_project(projects_file, filename, original_name, size):
         "branding_enabled": False,
         "branding_title": "",
         "branding_handle": "@AnderCode",
+        "outro_enabled": False,
+        "outro_image": None,
+        "outro_image_original_name": None,
+        "outro_image_size": None,
+        "outro_duration": 5,
+        "outro_fade": True,
     }
 
     projects = [item for item in projects if item.get("id") != project_id]
@@ -117,6 +123,7 @@ def delete_project(
     project_id,
     upload_folder,
     output_folder,
+    project_assets_folder=None,
 ):
     projects = _read_projects(projects_file)
     project = next(
@@ -140,6 +147,12 @@ def delete_project(
     if project_output.exists() and project_output.is_dir():
         shutil.rmtree(project_output)
 
+    if project_assets_folder:
+        project_assets = Path(project_assets_folder) / project_id
+
+        if project_assets.exists() and project_assets.is_dir():
+            shutil.rmtree(project_assets)
+
     projects = [item for item in projects if item.get("id") != project_id]
     _write_projects(projects_file, projects)
 
@@ -159,13 +172,21 @@ def _clear_directory(directory):
             item.unlink()
 
 
-def clear_projects(projects_file, upload_folder, output_folder):
+def clear_projects(
+    projects_file,
+    upload_folder,
+    output_folder,
+    project_assets_folder=None,
+):
     projects = _read_projects(projects_file)
 
     # uploads/ y outputs/ son carpetas temporales de esta herramienta.
     # Limpiar todo también elimina archivos antiguos no registrados.
     _clear_directory(upload_folder)
     _clear_directory(output_folder)
+
+    if project_assets_folder:
+        _clear_directory(project_assets_folder)
 
     _write_projects(projects_file, [])
 

@@ -13,8 +13,11 @@ from werkzeug.utils import secure_filename
 
 from services.outro_service import (
     OutroServiceError,
+    delete_hook_image,
     delete_outro_image,
+    resolve_hook_image,
     resolve_outro_image,
+    save_hook_image,
     save_outro_image,
 )
 from services.project_service import (
@@ -52,6 +55,12 @@ def project_with_url(project):
         data["url"] = url_for(
             "video.uploaded_video",
             filename=data["filename"],
+        )
+
+    if data.get("hook_image") and data.get("id"):
+        data["hook_image_url"] = url_for(
+            "video.project_hook_image",
+            project_id=data["id"],
         )
 
     if data.get("outro_image") and data.get("id"):
@@ -230,6 +239,190 @@ def projects_clear():
         "message": f"Se eliminaron {deleted} proyectos y sus archivos locales.",
         "deleted": deleted,
     })
+
+
+@video_bp.get("/projects/<project_id>/hook")
+def project_hook(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    data = {
+        "project_id": project_id,
+        "hook_enabled": bool(project.get("hook_enabled", False)),
+        "hook_image": project.get("hook_image"),
+        "hook_image_original_name": project.get("hook_image_original_name"),
+        "hook_image_size": project.get("hook_image_size"),
+        "hook_duration": project.get("hook_duration", 0.5),
+        "hook_fade": bool(project.get("hook_fade", True)),
+    }
+
+    if project.get("hook_image"):
+        data["hook_image_url"] = url_for(
+            "video.project_hook_image",
+            project_id=project_id,
+        )
+
+    return jsonify(data)
+
+
+@video_bp.patch("/projects/<project_id>/hook")
+def project_hook_update(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    payload = request.get_json(silent=True) or {}
+
+    try:
+        duration = float(
+            payload.get("hook_duration", project.get("hook_duration", 0.5))
+        )
+    except (TypeError, ValueError):
+        return jsonify({"message": "La duración del hook no es válida."}), 400
+
+    if not 0.2 <= duration <= 3:
+        return jsonify({
+            "message": "La duración del hook debe estar entre 0.2 y 3 segundos."
+        }), 400
+
+    enabled = payload.get("hook_enabled") is True
+    fade = payload.get("hook_fade") is not False
+
+    if enabled and not project.get("hook_image"):
+        return jsonify({
+            "message": "Sube primero una imagen de gancho antes de activar el hook."
+        }), 400
+
+    updated = update_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+        hook_enabled=enabled,
+        hook_duration=round(duration, 2),
+        hook_fade=fade,
+    )
+
+    return jsonify(project_with_url(updated))
+
+
+@video_bp.post("/projects/<project_id>/hook-image")
+def project_hook_image_upload(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    if "image" not in request.files:
+        return jsonify({"message": "No se recibió ninguna imagen."}), 400
+
+    try:
+        image_data = save_hook_image(
+            request.files["image"],
+            project_id,
+            current_app.config["PROJECT_ASSETS_FOLDER"],
+            current_app.config["OUTRO_IMAGE_MAX_SIZE"],
+        )
+    except OutroServiceError as error:
+        return outro_error_response(error)
+
+    updated = update_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+        hook_image=image_data["filename"],
+        hook_image_original_name=image_data["original_name"],
+        hook_image_size=image_data["size"],
+        hook_enabled=True,
+    )
+
+    data = project_with_url(updated)
+    data["message"] = "Imagen de gancho guardada correctamente."
+
+    return jsonify(data)
+
+
+@video_bp.get("/projects/<project_id>/hook-image")
+def project_hook_image(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    image_path = resolve_hook_image(
+        project_id,
+        project.get("hook_image"),
+        current_app.config["PROJECT_ASSETS_FOLDER"],
+    )
+
+    if image_path is None:
+        return jsonify({"message": "Imagen de gancho no encontrada."}), 404
+
+    return send_from_directory(
+        image_path.parent,
+        image_path.name,
+        as_attachment=False,
+    )
+
+
+@video_bp.delete("/projects/<project_id>/hook-image")
+def project_hook_image_delete(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    try:
+        delete_hook_image(
+            project_id,
+            current_app.config["PROJECT_ASSETS_FOLDER"],
+        )
+    except OutroServiceError as error:
+        return outro_error_response(error)
+
+    updated = update_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+        hook_enabled=False,
+        hook_image=None,
+        hook_image_original_name=None,
+        hook_image_size=None,
+    )
+
+    data = project_with_url(updated)
+    data["message"] = "Imagen de gancho eliminada."
+
+    return jsonify(data)
 
 
 @video_bp.get("/projects/<project_id>/outro")

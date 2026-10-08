@@ -11,6 +11,12 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+from services.outro_service import (
+    OutroServiceError,
+    delete_outro_image,
+    resolve_outro_image,
+    save_outro_image,
+)
 from services.project_service import (
     clear_projects,
     delete_project,
@@ -35,6 +41,10 @@ def service_error_response(error):
     return jsonify(error.to_dict()), error.status_code
 
 
+def outro_error_response(error):
+    return jsonify({"message": error.message}), error.status_code
+
+
 def project_with_url(project):
     data = dict(project)
 
@@ -42,6 +52,12 @@ def project_with_url(project):
         data["url"] = url_for(
             "video.uploaded_video",
             filename=data["filename"],
+        )
+
+    if data.get("outro_image") and data.get("id"):
+        data["outro_image_url"] = url_for(
+            "video.project_outro_image",
+            project_id=data["id"],
         )
 
     return data
@@ -192,6 +208,7 @@ def project_delete(project_id):
         project_id,
         current_app.config["UPLOAD_FOLDER"],
         current_app.config["OUTPUT_FOLDER"],
+        current_app.config["PROJECT_ASSETS_FOLDER"],
     )
 
     if not deleted:
@@ -206,12 +223,193 @@ def projects_clear():
         current_app.config["PROJECTS_FILE"],
         current_app.config["UPLOAD_FOLDER"],
         current_app.config["OUTPUT_FOLDER"],
+        current_app.config["PROJECT_ASSETS_FOLDER"],
     )
 
     return jsonify({
         "message": f"Se eliminaron {deleted} proyectos y sus archivos locales.",
         "deleted": deleted,
     })
+
+
+@video_bp.get("/projects/<project_id>/outro")
+def project_outro(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    data = {
+        "project_id": project_id,
+        "outro_enabled": bool(project.get("outro_enabled", False)),
+        "outro_image": project.get("outro_image"),
+        "outro_image_original_name": project.get("outro_image_original_name"),
+        "outro_image_size": project.get("outro_image_size"),
+        "outro_duration": project.get("outro_duration", 5),
+        "outro_fade": bool(project.get("outro_fade", True)),
+    }
+
+    if project.get("outro_image"):
+        data["outro_image_url"] = url_for(
+            "video.project_outro_image",
+            project_id=project_id,
+        )
+
+    return jsonify(data)
+
+
+@video_bp.patch("/projects/<project_id>/outro")
+def project_outro_update(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    payload = request.get_json(silent=True) or {}
+
+    try:
+        duration = int(payload.get("outro_duration", project.get("outro_duration", 5)))
+    except (TypeError, ValueError):
+        return jsonify({"message": "La duración del outro no es válida."}), 400
+
+    if not 2 <= duration <= 10:
+        return jsonify({"message": "La duración del outro debe estar entre 2 y 10 segundos."}), 400
+
+    enabled = payload.get("outro_enabled") is True
+    fade = payload.get("outro_fade") is not False
+
+    if enabled and not project.get("outro_image"):
+        return jsonify({
+            "message": "Sube primero una imagen promocional antes de activar el outro."
+        }), 400
+
+    updated = update_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+        outro_enabled=enabled,
+        outro_duration=duration,
+        outro_fade=fade,
+    )
+
+    return jsonify(project_with_url(updated))
+
+
+@video_bp.post("/projects/<project_id>/outro-image")
+def project_outro_image_upload(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    if "image" not in request.files:
+        return jsonify({"message": "No se recibió ninguna imagen."}), 400
+
+    try:
+        image_data = save_outro_image(
+            request.files["image"],
+            project_id,
+            current_app.config["PROJECT_ASSETS_FOLDER"],
+            current_app.config["OUTRO_IMAGE_MAX_SIZE"],
+        )
+    except OutroServiceError as error:
+        return outro_error_response(error)
+
+    updated = update_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+        outro_image=image_data["filename"],
+        outro_image_original_name=image_data["original_name"],
+        outro_image_size=image_data["size"],
+        outro_enabled=True,
+    )
+
+    data = project_with_url(updated)
+    data["message"] = "Imagen promocional guardada correctamente."
+
+    return jsonify(data)
+
+
+@video_bp.get("/projects/<project_id>/outro-image")
+def project_outro_image(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    image_path = resolve_outro_image(
+        project_id,
+        project.get("outro_image"),
+        current_app.config["PROJECT_ASSETS_FOLDER"],
+    )
+
+    if image_path is None:
+        return jsonify({"message": "Imagen promocional no encontrada."}), 404
+
+    return send_from_directory(
+        image_path.parent,
+        image_path.name,
+        as_attachment=False,
+    )
+
+
+@video_bp.delete("/projects/<project_id>/outro-image")
+def project_outro_image_delete(project_id):
+    if secure_filename(project_id) != project_id:
+        return jsonify({"message": "Proyecto inválido."}), 400
+
+    project = get_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+    )
+
+    if project is None:
+        return jsonify({"message": "Proyecto no encontrado."}), 404
+
+    try:
+        delete_outro_image(
+            project_id,
+            current_app.config["PROJECT_ASSETS_FOLDER"],
+        )
+    except OutroServiceError as error:
+        return outro_error_response(error)
+
+    updated = update_project(
+        current_app.config["PROJECTS_FILE"],
+        project_id,
+        outro_enabled=False,
+        outro_image=None,
+        outro_image_original_name=None,
+        outro_image_size=None,
+    )
+
+    data = project_with_url(updated)
+    data["message"] = "Imagen promocional eliminada."
+
+    return jsonify(data)
 
 
 @video_bp.get("/uploads/<path:filename>")

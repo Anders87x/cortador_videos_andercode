@@ -1,7 +1,14 @@
 import json
 import shutil
 import subprocess
+from functools import lru_cache
 from pathlib import Path
+
+from services.render_manager import (
+    is_job_cancelled,
+    register_process,
+    unregister_process,
+)
 
 
 def ffprobe_available():
@@ -10,6 +17,114 @@ def ffprobe_available():
 
 def ffmpeg_available():
     return shutil.which("ffmpeg") is not None
+
+
+class RenderCancelledError(RuntimeError):
+    pass
+
+
+@lru_cache(maxsize=1)
+def encoder_capabilities():
+    if not ffmpeg_available():
+        return {"nvenc": False}
+
+    result = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-encoders"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+
+    return {
+        "nvenc": "h264_nvenc" in output,
+    }
+
+
+def nvenc_available():
+    return bool(encoder_capabilities().get("nvenc"))
+
+
+def _video_encoder_args(encoder):
+    if encoder == "gpu":
+        return [
+            "-c:v",
+            "h264_nvenc",
+            "-preset",
+            "p5",
+            "-tune",
+            "hq",
+            "-rc",
+            "vbr",
+            "-cq",
+            "20",
+            "-b:v",
+            "0",
+        ]
+
+    return [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+    ]
+
+
+def _run_ffmpeg(command, job_id=None):
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    register_process(job_id, process)
+
+    try:
+        stdout, stderr = process.communicate()
+    finally:
+        unregister_process(job_id, process)
+
+    if is_job_cancelled(job_id):
+        raise RenderCancelledError("Render cancelado por el usuario.")
+
+    result = subprocess.CompletedProcess(
+        command,
+        process.returncode,
+        stdout,
+        stderr,
+    )
+
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(
+            process.returncode,
+            command,
+            output=stdout,
+            stderr=stderr,
+        )
+
+    return result
+
+
+def _nvenc_runtime_error(stderr):
+    text = (stderr or "").lower()
+
+    markers = (
+        "nvenc",
+        "cuda",
+        "no capable devices found",
+        "cannot load",
+        "driver does not support",
+        "unsupported device",
+    )
+
+    return any(marker in text for marker in markers)
 
 
 def probe_video(video_path):
@@ -352,6 +467,7 @@ def _build_promo_command(
     source_metadata,
     hook,
     outro,
+    encoder="cpu",
 ):
     fps = _safe_fps(source_metadata.get("fps"))
 
@@ -493,12 +609,7 @@ def _build_promo_command(
         "-sn",
         "-r",
         str(fps),
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
+        *_video_encoder_args(encoder),
         "-c:a",
         "aac",
         "-b:a",
@@ -522,6 +633,7 @@ def build_vertical_filter(
     branding_enabled=False,
     branding_title="",
     branding_handle="",
+    encoder="cpu",
 ):
     target_width = max(2, int(round(1080 * vertical_scale / 100)))
     target_height = max(2, int(round(1920 * vertical_scale / 100)))
@@ -605,12 +717,7 @@ def build_ffmpeg_command(
             "-map",
             "0:a?",
             "-sn",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "20",
+            *_video_encoder_args(encoder),
             "-c:a",
             "aac",
             "-b:a",
@@ -626,12 +733,7 @@ def build_ffmpeg_command(
         "-map",
         "0:a?",
         "-sn",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
+        *_video_encoder_args(encoder),
         "-pix_fmt",
         "yuv420p",
         "-c:a",
@@ -659,49 +761,87 @@ def render_clip(
     source_metadata=None,
     hook=None,
     outro=None,
+    encoder_mode="auto",
+    job_id=None,
 ):
-    if hook or outro:
-        if not source_metadata:
-            raise RuntimeError(
-                "No se recibieron los metadatos necesarios para renderizar hook/outro."
+    if encoder_mode not in {"auto", "gpu", "cpu"}:
+        raise RuntimeError("El motor de render seleccionado no es válido.")
+
+    if encoder_mode == "gpu" and not nvenc_available():
+        raise RuntimeError(
+            "NVIDIA NVENC no está disponible en esta instalación/equipo."
+        )
+
+    if encoder_mode == "auto":
+        encoders = ["gpu", "cpu"] if nvenc_available() else ["cpu"]
+    else:
+        encoders = [encoder_mode]
+
+    last_error = None
+
+    for encoder in encoders:
+        if hook or outro:
+            if not source_metadata:
+                raise RuntimeError(
+                    "No se recibieron los metadatos necesarios para renderizar hook/outro."
+                )
+
+            command = _build_promo_command(
+                video_path,
+                output_path,
+                start,
+                clip_duration,
+                output_format,
+                vertical_scale,
+                vertical_position,
+                blur_strength,
+                branding_enabled,
+                branding_title,
+                branding_handle,
+                source_metadata,
+                hook,
+                outro,
+                encoder,
+            )
+        else:
+            command = build_ffmpeg_command(
+                video_path,
+                output_path,
+                start,
+                clip_duration,
+                output_format,
+                vertical_scale,
+                vertical_position,
+                blur_strength,
+                branding_enabled,
+                branding_title,
+                branding_handle,
+                encoder,
             )
 
-        command = _build_promo_command(
-            video_path,
-            output_path,
-            start,
-            clip_duration,
-            output_format,
-            vertical_scale,
-            vertical_position,
-            blur_strength,
-            branding_enabled,
-            branding_title,
-            branding_handle,
-            source_metadata,
-            hook,
-            outro,
-        )
-    else:
-        command = build_ffmpeg_command(
-            video_path,
-            output_path,
-            start,
-            clip_duration,
-            output_format,
-            vertical_scale,
-            vertical_position,
-            blur_strength,
-            branding_enabled,
-            branding_title,
-            branding_handle,
-        )
+        try:
+            result = _run_ffmpeg(command, job_id)
+            result.encoder_used = (
+                "NVIDIA NVENC"
+                if encoder == "gpu"
+                else "CPU · libx264"
+            )
+            return result
+        except RenderCancelledError:
+            raise
+        except subprocess.CalledProcessError as error:
+            last_error = error
 
-    return subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+            if (
+                encoder_mode == "auto"
+                and encoder == "gpu"
+                and _nvenc_runtime_error(error.stderr)
+            ):
+                continue
+
+            raise
+
+    if last_error is not None:
+        raise last_error
+
+    raise RuntimeError("No se pudo seleccionar un motor de render.")

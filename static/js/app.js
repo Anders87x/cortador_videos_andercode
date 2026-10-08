@@ -2025,7 +2025,11 @@ generateButton.addEventListener("click", async () => {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.message || `No se pudo generar el clip ${segment.index}.`);
+                const error = new Error(
+                    data.message || `No se pudo generar el clip ${segment.index}.`
+                );
+                error.detail = data.detail || "";
+                throw error;
             }
 
             completed += 1;
@@ -2050,8 +2054,26 @@ generateButton.addEventListener("click", async () => {
 
             const errorItem = document.createElement("div");
             errorItem.className = "generated-item generated-error";
-            errorItem.textContent =
+
+            const errorTitle = document.createElement("div");
+            errorTitle.textContent =
                 `Clip ${String(segment.index).padStart(2, "0")}: ${error.message}`;
+            errorItem.appendChild(errorTitle);
+
+            if (error.detail) {
+                const details = document.createElement("details");
+                details.className = "ffmpeg-error-detail";
+
+                const summary = document.createElement("summary");
+                summary.textContent = "Ver detalle técnico de FFmpeg";
+
+                const pre = document.createElement("pre");
+                pre.textContent = error.detail;
+
+                details.append(summary, pre);
+                errorItem.appendChild(details);
+            }
+
             generatedList.appendChild(errorItem);
         }
 

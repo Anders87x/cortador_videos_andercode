@@ -2651,3 +2651,36 @@ html[data-theme="light"] .settings-accordion[open] {
         display: none;
     }
 }
+
+
+/* FFmpeg error diagnostics */
+.generated-error {
+    display: block;
+}
+
+.ffmpeg-error-detail {
+    margin-top: 8px;
+    width: 100%;
+}
+
+.ffmpeg-error-detail summary {
+    cursor: pointer;
+    color: var(--danger);
+    font-size: 0.7rem;
+    font-weight: 750;
+}
+
+.ffmpeg-error-detail pre {
+    margin: 8px 0 0;
+    max-height: 220px;
+    overflow: auto;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--soft-card-bg);
+    color: var(--muted);
+    font-size: 0.62rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}

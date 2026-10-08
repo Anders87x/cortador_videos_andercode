@@ -137,7 +137,7 @@ def generate_video_clip(
     clip_index = payload.get("index")
     start = payload.get("start")
     end = payload.get("end")
-    output_format = payload.get("output_format", "original")
+    output_format = payload.get("output_format", "vertical")
     vertical_scale = payload.get("vertical_scale", 100)
     vertical_position = payload.get("vertical_position", "center")
     blur_strength = payload.get("blur_strength", 25)

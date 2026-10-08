@@ -204,213 +204,340 @@
             </div>
 
             <aside id="settingsSection" class="panel settings-panel workflow-section">
-                <div class="panel-heading">
+                <div class="panel-heading settings-panel-heading">
                     <div>
                         <span class="step">02</span>
-                        <h2>Configuración inicial</h2>
+                        <h2>Configuración</h2>
                     </div>
+                    <span class="settings-hint">Abre solo lo que necesites</span>
                 </div>
 
-                <div class="field">
-                    <label for="introSeconds">Eliminar intro</label>
-                    <div class="input-with-unit">
-                        <input id="introSeconds" type="number" min="0" step="1" value="5">
-                        <span>segundos</span>
-                    </div>
-                    <small>El video útil comenzará después de este tiempo.</small>
-                </div>
-
-                <div class="field">
-                    <label for="clipSeconds">Duración de cada clip</label>
-                    <div class="input-with-unit">
-                        <input id="clipSeconds" type="number" min="5" step="1" value="30">
-                        <span>segundos</span>
-                    </div>
-                    <small>Usaremos este valor para preparar los cortes.</small>
-                </div>
-
-                <div class="field">
-                    <label>Formato de salida</label>
-
-                    <div class="format-options">
-                        <label class="format-option">
-                            <input type="radio" name="outputFormat" value="original" checked>
-                            <span class="format-option-copy">
-                                <strong>Original</strong>
-                                <small>Mantiene resolución y proporción.</small>
+                <div class="settings-accordion-list">
+                    <details class="settings-accordion" open>
+                        <summary>
+                            <span class="accordion-index">01</span>
+                            <span class="accordion-copy">
+                                <strong>Cortes y formato</strong>
+                                <small>5 s intro · 30 s clips · Reel 9:16</small>
                             </span>
-                            <span class="format-ratio landscape">16:9</span>
-                        </label>
+                            <span class="accordion-chevron">⌄</span>
+                        </summary>
 
-                        <label class="format-option">
-                            <input type="radio" name="outputFormat" value="vertical">
-                            <span class="format-option-copy">
-                                <strong>Reel 9:16</strong>
-                                <small>1080×1920 con fondo desenfocado.</small>
-                            </span>
-                            <span class="format-ratio portrait">9:16</span>
-                        </label>
-                    </div>
-                </div>
+                        <div class="accordion-content">
+                            <div class="field compact-field">
+                                <label for="introSeconds">Eliminar intro</label>
+                                <div class="input-with-unit">
+                                    <input id="introSeconds" type="number" min="0" step="1" value="5">
+                                    <span>segundos</span>
+                                </div>
+                                <small>El video útil comenzará después de este tiempo.</small>
+                            </div>
 
-                <div id="verticalSettings" class="vertical-settings hidden">
-                    <div class="vertical-settings-heading">
-                        <span>PERSONALIZAR REEL</span>
-                        <strong>Ajusta el encuadre 9:16</strong>
-                    </div>
+                            <div class="field compact-field">
+                                <label for="clipSeconds">Duración de cada clip</label>
+                                <div class="input-with-unit">
+                                    <input id="clipSeconds" type="number" min="5" step="1" value="30">
+                                    <span>segundos</span>
+                                </div>
+                                <small>Usaremos este valor para preparar los cortes.</small>
+                            </div>
 
-                    <div class="field compact-field">
-                        <div class="range-label">
-                            <label for="contentScale">Tamaño del video</label>
-                            <strong id="contentScaleValue">100%</strong>
-                        </div>
-                        <input id="contentScale" class="range-input" type="range" min="70" max="100" step="1" value="100">
-                        <small>Reduce el video para dejar más aire alrededor del contenido.</small>
-                    </div>
+                            <div class="field compact-field">
+                                <label>Formato de salida</label>
 
-                    <div class="field compact-field">
-                        <label>Posición vertical</label>
-                        <div class="position-options">
-                            <label>
-                                <input type="radio" name="verticalPosition" value="top">
-                                <span>Arriba</span>
-                            </label>
-                            <label>
-                                <input type="radio" name="verticalPosition" value="center" checked>
-                                <span>Centro</span>
-                            </label>
-                            <label>
-                                <input type="radio" name="verticalPosition" value="bottom">
-                                <span>Abajo</span>
-                            </label>
-                        </div>
-                    </div>
+                                <div class="format-options">
+                                    <label class="format-option">
+                                        <input type="radio" name="outputFormat" value="original">
+                                        <span class="format-option-copy">
+                                            <strong>Original</strong>
+                                            <small>Mantiene resolución y proporción.</small>
+                                        </span>
+                                        <span class="format-ratio landscape">16:9</span>
+                                    </label>
 
-                    <div class="field compact-field">
-                        <div class="range-label">
-                            <label for="blurStrength">Desenfoque del fondo</label>
-                            <strong id="blurStrengthValue">25</strong>
-                        </div>
-                        <input id="blurStrength" class="range-input" type="range" min="5" max="40" step="1" value="25">
-                        <small>Solo afecta al video ampliado que usamos como fondo.</small>
-                    </div>
-
-                    <div class="branding-divider"></div>
-
-                    <label class="branding-toggle">
-                        <input id="brandingEnabled" type="checkbox">
-                        <span class="branding-toggle-ui"></span>
-                        <span>
-                            <strong>Agregar branding AnderCode</strong>
-                            <small>Título superior + firma inferior en el Reel.</small>
-                        </span>
-                    </label>
-
-                    <div id="brandingSettings" class="branding-settings hidden">
-                        <div class="field compact-field">
-                            <label for="brandingTitle">Título del Reel</label>
-                            <input
-                                id="brandingTitle"
-                                class="text-input"
-                                type="text"
-                                maxlength="70"
-                                placeholder="Ej. API de WhatsApp con Laravel"
-                            >
-                            <small>Máximo 70 caracteres.</small>
-                        </div>
-
-                        <div class="field compact-field">
-                            <label for="brandingHandle">Firma</label>
-                            <input
-                                id="brandingHandle"
-                                class="text-input"
-                                type="text"
-                                maxlength="40"
-                                value="@AnderCode"
-                                placeholder="@AnderCode"
-                            >
-                            <small>Se mostrará en la parte inferior.</small>
-                        </div>
-
-                        <label class="safe-zone-toggle">
-                            <input id="showSafeZone" type="checkbox" checked>
-                            <span>Mostrar guía para futuros subtítulos en el preview</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="outro-settings">
-                    <div class="outro-heading">
-                        <div>
-                            <span>OUTRO PROMOCIONAL</span>
-                            <strong>Cierre publicitario del proyecto</strong>
-                        </div>
-
-                        <label class="branding-toggle outro-toggle">
-                            <input id="outroEnabled" type="checkbox" disabled>
-                            <span class="branding-toggle-ui"></span>
-                        </label>
-                    </div>
-
-                    <p class="outro-description">
-                        Esta imagen se agregará al final de todos los clips de este proyecto.
-                        En esta fase solo guardaremos y previsualizaremos la configuración.
-                    </p>
-
-                    <input
-                        id="outroImageInput"
-                        type="file"
-                        accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
-                        hidden
-                    >
-
-                    <div id="outroEmptyState" class="outro-empty">
-                        <div class="outro-empty-icon">▧</div>
-                        <div>
-                            <strong>Sin imagen promocional</strong>
-                            <span id="outroProjectHint">Carga primero el video al proyecto.</span>
-                        </div>
-                    </div>
-
-                    <div id="outroPreviewBox" class="outro-preview-box hidden">
-                        <img id="outroImagePreview" alt="Vista previa de la imagen promocional">
-                        <div class="outro-preview-meta">
-                            <strong id="outroImageName">Imagen promocional</strong>
-                            <span id="outroImageSize">—</span>
-                        </div>
-                    </div>
-
-                    <div class="outro-actions">
-                        <button id="selectOutroImageButton" class="compact-button primary-compact" type="button" disabled>
-                            Seleccionar imagen
-                        </button>
-
-                        <button id="deleteOutroImageButton" class="compact-button danger-compact" type="button" disabled>
-                            Eliminar imagen
-                        </button>
-                    </div>
-
-                    <div class="outro-options">
-                        <div class="field compact-field">
-                            <label for="outroDuration">Duración</label>
-                            <div class="input-with-unit">
-                                <input id="outroDuration" type="number" min="2" max="10" step="1" value="5" disabled>
-                                <span>segundos</span>
+                                    <label class="format-option">
+                                        <input type="radio" name="outputFormat" value="vertical" checked>
+                                        <span class="format-option-copy">
+                                            <strong>Reel 9:16</strong>
+                                            <small>1080×1920 con fondo desenfocado.</small>
+                                        </span>
+                                        <span class="format-ratio portrait">9:16</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
+                    </details>
 
-                        <label class="safe-zone-toggle outro-fade-toggle">
-                            <input id="outroFade" type="checkbox" checked disabled>
-                            <span>Fade de entrada y salida</span>
-                        </label>
-                    </div>
+                    <details id="verticalSettings" class="settings-accordion">
+                        <summary>
+                            <span class="accordion-index">02</span>
+                            <span class="accordion-copy">
+                                <strong>Encuadre 9:16</strong>
+                                <small id="frameAccordionSummary">100% · Centro · Blur 25</small>
+                            </span>
+                            <span class="accordion-chevron">⌄</span>
+                        </summary>
 
-                    <div id="outroStatus" class="outro-status">
-                        La imagen será silenciosa y específica para este proyecto.
-                    </div>
+                        <div class="accordion-content">
+                            <div class="field compact-field">
+                                <div class="range-label">
+                                    <label for="contentScale">Tamaño del video</label>
+                                    <strong id="contentScaleValue">100%</strong>
+                                </div>
+                                <input id="contentScale" class="range-input" type="range" min="70" max="100" step="1" value="100">
+                                <small>Reduce el video para dejar más aire alrededor del contenido.</small>
+                            </div>
+
+                            <div class="field compact-field">
+                                <label>Posición vertical</label>
+                                <div class="position-options">
+                                    <label>
+                                        <input type="radio" name="verticalPosition" value="top">
+                                        <span>Arriba</span>
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="verticalPosition" value="center" checked>
+                                        <span>Centro</span>
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="verticalPosition" value="bottom">
+                                        <span>Abajo</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="field compact-field">
+                                <div class="range-label">
+                                    <label for="blurStrength">Desenfoque del fondo</label>
+                                    <strong id="blurStrengthValue">25</strong>
+                                </div>
+                                <input id="blurStrength" class="range-input" type="range" min="5" max="40" step="1" value="25">
+                            </div>
+                        </div>
+                    </details>
+
+                    <details id="brandingAccordion" class="settings-accordion">
+                        <summary>
+                            <span class="accordion-index">03</span>
+                            <span class="accordion-copy">
+                                <strong>Branding AnderCode</strong>
+                                <small id="brandingAccordionSummary">Activo · anderson-bastidas.com</small>
+                            </span>
+                            <span class="accordion-chevron">⌄</span>
+                        </summary>
+
+                        <div class="accordion-content">
+                            <label class="branding-toggle">
+                                <input id="brandingEnabled" type="checkbox" checked>
+                                <span class="branding-toggle-ui"></span>
+                                <span>
+                                    <strong>Agregar branding</strong>
+                                    <small>Título superior + firma inferior en el Reel.</small>
+                                </span>
+                            </label>
+
+                            <div id="brandingSettings" class="branding-settings">
+                                <div class="field compact-field">
+                                    <label for="brandingTitle">Título del Reel</label>
+                                    <input
+                                        id="brandingTitle"
+                                        class="text-input"
+                                        type="text"
+                                        maxlength="70"
+                                        placeholder="Ej. API de WhatsApp con Laravel"
+                                    >
+                                </div>
+
+                                <div class="field compact-field">
+                                    <label for="brandingHandle">Firma</label>
+                                    <input
+                                        id="brandingHandle"
+                                        class="text-input"
+                                        type="text"
+                                        maxlength="40"
+                                        value="anderson-bastidas.com"
+                                        placeholder="anderson-bastidas.com"
+                                    >
+                                </div>
+
+                                <label class="safe-zone-toggle">
+                                    <input id="showSafeZone" type="checkbox" checked>
+                                    <span>Mostrar guía de zona segura en el preview</span>
+                                </label>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details id="hookAccordion" class="settings-accordion">
+                        <summary>
+                            <span class="accordion-index">04</span>
+                            <span class="accordion-copy">
+                                <strong>Hook inicial</strong>
+                                <small id="hookAccordionSummary">Sin imagen · 0.5 s</small>
+                            </span>
+                            <span class="accordion-chevron">⌄</span>
+                        </summary>
+
+                        <div class="accordion-content">
+                            <div class="promo-block">
+                                <div class="outro-heading">
+                                    <div>
+                                        <span>GANCHO VISUAL</span>
+                                        <strong>Imagen al inicio de cada clip</strong>
+                                    </div>
+
+                                    <label class="branding-toggle outro-toggle">
+                                        <input id="hookEnabled" type="checkbox" disabled>
+                                        <span class="branding-toggle-ui"></span>
+                                    </label>
+                                </div>
+
+                                <p class="outro-description">
+                                    Se mostrará durante 0.5 s por defecto antes del contenido.
+                                    Será silenciosa y específica para este proyecto.
+                                </p>
+
+                                <input
+                                    id="hookImageInput"
+                                    type="file"
+                                    accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                                    hidden
+                                >
+
+                                <div id="hookEmptyState" class="outro-empty">
+                                    <div class="outro-empty-icon">⚡</div>
+                                    <div>
+                                        <strong>Sin imagen de gancho</strong>
+                                        <span id="hookProjectHint">Carga primero el video al proyecto.</span>
+                                    </div>
+                                </div>
+
+                                <div id="hookPreviewBox" class="outro-preview-box hidden">
+                                    <img id="hookImagePreview" alt="Vista previa de la imagen de gancho">
+                                    <div class="outro-preview-meta">
+                                        <strong id="hookImageName">Imagen de gancho</strong>
+                                        <span id="hookImageSize">—</span>
+                                    </div>
+                                </div>
+
+                                <div class="outro-actions">
+                                    <button id="selectHookImageButton" class="compact-button primary-compact" type="button" disabled>
+                                        Seleccionar imagen
+                                    </button>
+
+                                    <button id="deleteHookImageButton" class="compact-button danger-compact" type="button" disabled>
+                                        Eliminar imagen
+                                    </button>
+                                </div>
+
+                                <div class="outro-options">
+                                    <div class="field compact-field">
+                                        <label for="hookDuration">Duración</label>
+                                        <div class="input-with-unit">
+                                            <input id="hookDuration" type="number" min="0.2" max="3" step="0.1" value="0.5" disabled>
+                                            <span>segundos</span>
+                                        </div>
+                                    </div>
+
+                                    <label class="safe-zone-toggle outro-fade-toggle">
+                                        <input id="hookFade" type="checkbox" checked disabled>
+                                        <span>Fade de entrada y salida</span>
+                                    </label>
+                                </div>
+
+                                <div id="hookStatus" class="outro-status">
+                                    PNG, JPG, JPEG o WEBP · máximo 10 MB.
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details id="outroAccordion" class="settings-accordion">
+                        <summary>
+                            <span class="accordion-index">05</span>
+                            <span class="accordion-copy">
+                                <strong>Outro promocional</strong>
+                                <small id="outroAccordionSummary">Sin imagen · 5 s</small>
+                            </span>
+                            <span class="accordion-chevron">⌄</span>
+                        </summary>
+
+                        <div class="accordion-content">
+                            <div class="promo-block">
+                                <div class="outro-heading">
+                                    <div>
+                                        <span>CIERRE PUBLICITARIO</span>
+                                        <strong>Imagen al final de cada clip</strong>
+                                    </div>
+
+                                    <label class="branding-toggle outro-toggle">
+                                        <input id="outroEnabled" type="checkbox" disabled>
+                                        <span class="branding-toggle-ui"></span>
+                                    </label>
+                                </div>
+
+                                <p class="outro-description">
+                                    Esta imagen se agregará al final de todos los clips del proyecto.
+                                    Será silenciosa.
+                                </p>
+
+                                <input
+                                    id="outroImageInput"
+                                    type="file"
+                                    accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                                    hidden
+                                >
+
+                                <div id="outroEmptyState" class="outro-empty">
+                                    <div class="outro-empty-icon">▧</div>
+                                    <div>
+                                        <strong>Sin imagen promocional</strong>
+                                        <span id="outroProjectHint">Carga primero el video al proyecto.</span>
+                                    </div>
+                                </div>
+
+                                <div id="outroPreviewBox" class="outro-preview-box hidden">
+                                    <img id="outroImagePreview" alt="Vista previa de la imagen promocional">
+                                    <div class="outro-preview-meta">
+                                        <strong id="outroImageName">Imagen promocional</strong>
+                                        <span id="outroImageSize">—</span>
+                                    </div>
+                                </div>
+
+                                <div class="outro-actions">
+                                    <button id="selectOutroImageButton" class="compact-button primary-compact" type="button" disabled>
+                                        Seleccionar imagen
+                                    </button>
+
+                                    <button id="deleteOutroImageButton" class="compact-button danger-compact" type="button" disabled>
+                                        Eliminar imagen
+                                    </button>
+                                </div>
+
+                                <div class="outro-options">
+                                    <div class="field compact-field">
+                                        <label for="outroDuration">Duración</label>
+                                        <div class="input-with-unit">
+                                            <input id="outroDuration" type="number" min="2" max="10" step="1" value="5" disabled>
+                                            <span>segundos</span>
+                                        </div>
+                                    </div>
+
+                                    <label class="safe-zone-toggle outro-fade-toggle">
+                                        <input id="outroFade" type="checkbox" checked disabled>
+                                        <span>Fade de entrada y salida</span>
+                                    </label>
+                                </div>
+
+                                <div id="outroStatus" class="outro-status">
+                                    PNG, JPG, JPEG o WEBP · máximo 10 MB.
+                                </div>
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
-                <div class="summary-card">
+                <div class="summary-card settings-summary-card">
                     <span>Duración detectada</span>
                     <strong id="videoDuration">—</strong>
 

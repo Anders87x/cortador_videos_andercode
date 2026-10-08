@@ -2260,3 +2260,202 @@ html[data-theme="light"] .compact-icon-button {
         flex: 1 1 auto;
     }
 }
+
+
+/* =========================================================
+   PHASE 9.1 · PROJECT OUTRO
+   ========================================================= */
+
+.outro-settings {
+    margin-top: 18px;
+    padding: 15px;
+    border: 1px solid rgba(124, 92, 255, 0.24);
+    border-radius: 14px;
+    background:
+        linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--accent-soft) 72%, transparent),
+            color-mix(in srgb, var(--surface) 92%, transparent)
+        );
+}
+
+.outro-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.outro-heading span,
+.outro-heading strong {
+    display: block;
+}
+
+.outro-heading span {
+    color: var(--accent);
+    font-size: 0.66rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+}
+
+.outro-heading strong {
+    margin-top: 3px;
+    font-size: 0.88rem;
+}
+
+.outro-toggle {
+    grid-template-columns: auto;
+    flex: 0 0 auto;
+}
+
+.outro-description {
+    margin: 10px 0 14px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.55;
+}
+
+.outro-empty,
+.outro-preview-box {
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    background: var(--soft-card-bg);
+}
+
+.outro-empty {
+    min-height: 92px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.outro-empty-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    color: var(--accent);
+    font-size: 1.2rem;
+}
+
+.outro-empty strong,
+.outro-empty span {
+    display: block;
+}
+
+.outro-empty strong {
+    font-size: 0.8rem;
+}
+
+.outro-empty span {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.69rem;
+    line-height: 1.4;
+}
+
+.outro-preview-box {
+    padding: 10px;
+}
+
+.outro-preview-box img {
+    display: block;
+    width: 100%;
+    max-height: 190px;
+    object-fit: contain;
+    border-radius: 9px;
+    background: #05070c;
+}
+
+.outro-preview-meta {
+    margin-top: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.outro-preview-meta strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.73rem;
+}
+
+.outro-preview-meta span {
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 0.66rem;
+}
+
+.outro-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 7px;
+}
+
+.outro-actions .compact-button {
+    flex: 1 1 0;
+}
+
+.outro-options {
+    margin-top: 14px;
+    display: grid;
+    gap: 12px;
+}
+
+.outro-fade-toggle {
+    margin-top: 0;
+}
+
+.outro-status {
+    margin-top: 12px;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--soft-card-bg);
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+.outro-status.success {
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 30%, var(--border));
+    background: color-mix(in srgb, var(--success) 6%, var(--surface));
+}
+
+.outro-status.error {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+    background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+}
+
+html[data-theme="light"] .outro-settings {
+    border-color: rgba(105, 72, 232, 0.2);
+    background: #faf9ff;
+}
+
+html[data-theme="light"] .outro-empty,
+html[data-theme="light"] .outro-preview-box,
+html[data-theme="light"] .outro-status {
+    background: #ffffff;
+}
+
+@media (max-width: 600px) {
+    .outro-actions {
+        flex-direction: column;
+    }
+
+    .outro-preview-meta {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+}
